@@ -1,0 +1,202 @@
+/* src/components/RoleManagement/RoleManagement.css */
+.role-management-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.role-management-container h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.management-sections {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.section {
+  flex: 1;
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input[type="text"] {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.create-button {
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.create-button:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.create-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.list-container {
+  margin-top: 1.5rem;
+}
+
+.list-container h4 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  background: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.item:hover {
+  background-color: #f8f9fa;
+}
+
+.item.selected {
+  background-color: #e3f2fd;
+  border-color: #2196f3;
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-info strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.item-info span {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.add-button {
+  padding: 0.25rem 0.5rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.add-button:hover {
+  background-color: #218838;
+}
+
+.remove-button {
+  padding: 0.25rem 0.5rem;
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.remove-button:hover {
+  background-color: #e0a800;
+}
+
+.delete-button {
+  padding: 0.25rem 0.5rem;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.delete-button:hover {
+  background-color: #c82333;
+}
+
+.role-permissions-section {
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.role-permissions-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.permissions-management {
+  display: flex;
+  gap: 2rem;
+}
+
+.available-permissions,
+.assigned-permissions {
+  flex: 1;
+}
+
+.available-permissions h4,
+.assigned-permissions h4 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.error-message {
+  color: #721c24;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
