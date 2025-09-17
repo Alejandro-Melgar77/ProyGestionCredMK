@@ -1,4 +1,3 @@
-/* src/components/RoleManagement/RoleManagement.css */
 .role-management-container {
   padding: 2rem;
   max-width: 1400px;
@@ -10,10 +9,12 @@
   color: #333;
 }
 
+/* Layout principal */
 .management-sections {
   display: flex;
   gap: 2rem;
   margin-bottom: 2rem;
+  flex-wrap: wrap; /* ✅ asegura que baje a otra fila si no cabe */
 }
 
 .section {
@@ -21,6 +22,7 @@
   background: #f9f9f9;
   padding: 1.5rem;
   border-radius: 8px;
+  min-width: 300px; /* ✅ asegura buen tamaño en pantallas medianas */
 }
 
 .section h3 {
@@ -29,6 +31,7 @@
   color: #333;
 }
 
+/* Formularios */
 .form-group {
   margin-bottom: 1rem;
 }
@@ -39,23 +42,18 @@
   font-weight: 500;
 }
 
-.form-group input[type="text"] {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
+.form-group input[type="text"],
 .form-group textarea {
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
+  box-sizing: border-box;
   resize: vertical;
 }
 
+/* Botones principales */
 .create-button {
   padding: 0.5rem 1rem;
   background-color: #28a745;
@@ -63,6 +61,7 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  transition: background 0.3s;
 }
 
 .create-button:hover:not(:disabled) {
@@ -74,6 +73,7 @@
   cursor: not-allowed;
 }
 
+/* Listas */
 .list-container {
   margin-top: 1.5rem;
 }
@@ -125,13 +125,19 @@
   color: #6c757d;
 }
 
-.add-button {
+/* Botones de acción */
+.add-button,
+.remove-button,
+.delete-button {
   padding: 0.25rem 0.5rem;
-  background-color: #28a745;
-  color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.add-button {
+  background-color: #28a745;
+  color: white;
 }
 
 .add-button:hover {
@@ -139,12 +145,8 @@
 }
 
 .remove-button {
-  padding: 0.25rem 0.5rem;
   background-color: #ffc107;
   color: #212529;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 .remove-button:hover {
@@ -152,18 +154,15 @@
 }
 
 .delete-button {
-  padding: 0.25rem 0.5rem;
   background-color: #dc3545;
   color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 .delete-button:hover {
   background-color: #c82333;
 }
 
+/* Permisos */
 .role-permissions-section {
   background: #f9f9f9;
   padding: 1.5rem;
@@ -179,11 +178,13 @@
 .permissions-management {
   display: flex;
   gap: 2rem;
+  flex-wrap: wrap; /* ✅ permite adaptarse en pantallas chicas */
 }
 
 .available-permissions,
 .assigned-permissions {
   flex: 1;
+  min-width: 280px; /* ✅ no se achican demasiado */
 }
 
 .available-permissions h4,
@@ -192,6 +193,7 @@
   color: #333;
 }
 
+/* Mensajes de error */
 .error-message {
   color: #721c24;
   margin-bottom: 1rem;
@@ -199,4 +201,51 @@
   background-color: #f8d7da;
   border: 1px solid #f5c6cb;
   border-radius: 4px;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1024px) {
+  .management-sections {
+    flex-direction: column;
+  }
+
+  .permissions-management {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .role-management-container {
+    padding: 1rem;
+  }
+
+  .create-button,
+  .add-button,
+  .remove-button,
+  .delete-button {
+    width: 100%; /* ✅ botones full width en móvil */
+    margin-top: 0.5rem;
+  }
+
+  .item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .section,
+  .role-permissions-section {
+    padding: 1rem;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    font-size: 0.9rem;
+  }
+
+  .item-info span {
+    font-size: 0.8rem;
+  }
 }

@@ -1,27 +1,103 @@
 .navigation {
-  background-color: #fff;
-  padding: 1rem;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  background: #2c3e50;
+  padding: 0.5rem 1rem;
+  color: white;
+  width: 100%;            /* ✅ ocupa todo el ancho */
+  box-sizing: border-box; /* ✅ asegura que padding no rompa */
 }
 
-.navigation ul {
+.nav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.menu-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+  display: none; /* solo en móvil */
+}
+
+.nav-links {
   list-style: none;
   display: flex;
   gap: 1rem;
+  margin: 0;
+  padding: 0;
+  width: 100%;            /* ✅ se adapta al ancho */
 }
 
-.navigation a {
-  text-decoration: none;
-  color: #333;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+.nav-links li {
+  display: flex;
+  align-items: center;
 }
 
-.navigation a:hover,
-.navigation a.active {
-  background-color: #007bff;
+.nav-links a, 
+.logout-button {
   color: white;
+  text-decoration: none;
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+  transition: background 0.3s;
+  display: block;
+}
+
+.nav-links a:hover, 
+.logout-button:hover {
+  background: #34495e;
+}
+
+.active {
+  background: #1abc9c;
+  font-weight: bold;
+}
+
+.logout-button {
+  border: none;
+  background: #e74c3c;
+  cursor: pointer;
+}
+
+/* --- Responsivo --- */
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: block;
+  }
+
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    background: #2c3e50;
+    width: 100%;              /* ✅ ocupa todo el ancho */
+    padding: 1rem 0;
+    position: fixed;          /* ✅ fijo en pantalla */
+    top: 60px;                /* debajo del header */
+    left: 0;
+    z-index: 1000;
+  }
+
+  .nav-links.show {
+    display: flex;
+  }
+
+  .nav-links li {
+    text-align: center;
+    width: 100%;              /* ✅ cada item ocupa todo */
+  }
+
+  .nav-links a, 
+  .logout-button {
+    width: 100%;
+    text-align: center;
+    padding: 1rem;            /* ✅ más cómodo en móvil */
+  }
 }

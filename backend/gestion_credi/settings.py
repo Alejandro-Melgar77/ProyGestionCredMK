@@ -11,16 +11,23 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-
+import os
+import environ
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
+#BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-c(80dp8yws%guopldo31@kr%ycn)^=*v8q4@jy+qayox@exu=s'
+
+
+# Inicializar environ
+env = environ.Env()
+# Cargar el archivo .env (subimos un nivel porque settings.py está en backend/gestion_credi)
+environ.Env.read_env(os.path.join(BASE_DIR, '..', '.env'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -105,13 +112,14 @@ WSGI_APPLICATION = 'gestion_credi.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'gestion_creditos_db',
-        'USER': 'postgres',
-        'PASSWORD': '1346',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
+        'PORT': env('DB_PORT'),
     }
 }
+
 
 
 # Password validation

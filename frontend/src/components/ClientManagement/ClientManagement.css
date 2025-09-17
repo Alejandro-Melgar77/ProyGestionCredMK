@@ -98,3 +98,74 @@
   padding: 2rem;
   font-size: 1.2rem;
 }
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1024px) {
+  .filters {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .search-input {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .client-management-container {
+    padding: 1rem;
+  }
+
+  .clients-table {
+    font-size: 0.85rem;
+  }
+
+  /* Hacer la tabla scrolleable en móvil */
+  .clients-list {
+    overflow-x: auto;
+  }
+
+  .clients-table {
+    min-width: 600px; /* evita que se rompa */
+  }
+}
+
+@media (max-width: 480px) {
+  /* Mostrar cada fila como card en pantallas muy pequeñas */
+  .clients-table,
+  .clients-table thead,
+  .clients-table tbody,
+  .clients-table th,
+  .clients-table td,
+  .clients-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .clients-table thead {
+    display: none; /* ocultamos los headers */
+  }
+
+  .clients-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.75rem;
+    background: #fff;
+  }
+
+  .clients-table td {
+    border: none;
+    padding: 0.5rem 0;
+    text-align: left;
+    position: relative;
+  }
+
+  .clients-table td::before {
+    content: attr(data-label); /* se agrega nombre de la columna */
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.2rem;
+    color: #555;
+  }
+}

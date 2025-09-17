@@ -1,4 +1,3 @@
-// src/components/UserManagement/UserManagement.js
 import React, { useState, useEffect } from 'react';
 import axios from '../../config/axios';
 import './UserManagement.css';
@@ -14,7 +13,7 @@ const UserManagement = () => {
     first_name: '',
     last_name: '',
     is_active: true,
-    rol_id: ''  
+    rol_id: ''
   });
   const [editingUser, setEditingUser] = useState(null);
   const [error, setError] = useState('');
@@ -34,6 +33,7 @@ const UserManagement = () => {
       console.error('Fetch users error:', err);
     }
   };
+
   const fetchRoles = async () => {
     try {
       const response = await axios.get('http://localhost:8000/api/roles/');
@@ -58,32 +58,30 @@ const UserManagement = () => {
 
     try {
       if (editingUser) {
-        // Actualizar usuario existente
         const payload = { ...formData };
-        if (!payload.password) delete payload.password; // No enviar contraseña vacía
+        if (!payload.password) delete payload.password;
         await axios.put(`http://localhost:8000/api/users/${editingUser.id}/`, payload);
       } else {
-        // Crear nuevo usuario
         await axios.post('http://localhost:8000/api/users/', {
-          ...formData, 
-          rol_id: formData.rol_id, 
+          ...formData,
+          rol_id: formData.rol_id,
           password2: formData.password2
         });
       }
 
-      // Resetear formulario y recargar lista de usuarios
       setFormData({
         username: '',
         email: '',
         password: '',
+        password2: '',
         first_name: '',
         last_name: '',
-        is_active: true
+        is_active: true,
+        rol_id: ''
       });
       setEditingUser(null);
       fetchUsers();
     } catch (err) {
-      // Mostrar errores específicos del backend si existen
       if (err.response?.data) {
         const messages = Object.entries(err.response.data)
           .map(([field, msgs]) => `${field}: ${msgs.join(' ')}`)
@@ -103,9 +101,11 @@ const UserManagement = () => {
       username: user.username,
       email: user.email,
       password: '',
+      password2: '',
       first_name: user.first_name,
       last_name: user.last_name,
-      is_active: user.is_active
+      is_active: user.is_active,
+      rol_id: user.rol_id || ''
     });
     setEditingUser(user);
     setError('');
@@ -128,9 +128,11 @@ const UserManagement = () => {
       username: '',
       email: '',
       password: '',
+      password2: '',
       first_name: '',
       last_name: '',
-      is_active: true
+      is_active: true,
+      rol_id: ''
     });
     setEditingUser(null);
     setError('');
@@ -194,6 +196,7 @@ const UserManagement = () => {
             />
           </div>
         </div>
+
         <div className="form-group">
           <label htmlFor="rol_id">Rol:</label>
           <select
@@ -270,39 +273,41 @@ const UserManagement = () => {
         {users.length === 0 ? (
           <p>No hay usuarios registrados</p>
         ) : (
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Usuario</th>
-                <th>Nombre Completo</th>
-                <th>Email</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.username}</td>
-                  <td>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || '-'}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    <span className={`status ${user.is_active ? 'active' : 'inactive'}`}>
-                      {user.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="edit-button" onClick={() => handleEdit(user)}>
-                      Editar
-                    </button>
-                    <button className="delete-button" onClick={() => handleDelete(user.id)}>
-                      Eliminar
-                    </button>
-                  </td>
+          <div className="table-wrapper">
+            <table className="users-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Nombre Completo</th>
+                  <th>Email</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.username}</td>
+                    <td>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || '-'}</td>
+                    <td>{user.email}</td>
+                    <td>
+                      <span className={`status ${user.is_active ? 'active' : 'inactive'}`}>
+                        {user.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="edit-button" onClick={() => handleEdit(user)}>
+                        Editar
+                      </button>
+                      <button className="delete-button" onClick={() => handleDelete(user.id)}>
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
