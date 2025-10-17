@@ -174,12 +174,12 @@ class UserViewSet(viewsets.ModelViewSet):
 #                    CLIENTE / EMPLEADO
 # =========================================================
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.all()
+    queryset = Cliente.objects.select_related('user').all()
     serializer_class = ClienteSerializer
     permission_classes = [IsAuthenticated]
 
 class EmpleadoViewSet(viewsets.ModelViewSet):
-    queryset = Empleado.objects.all()
+    queryset = Empleado.objects.select_related('user').all()
     serializer_class = EmpleadoSerializer
     permission_classes = [IsAuthenticated]
 

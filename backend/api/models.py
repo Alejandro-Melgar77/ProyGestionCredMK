@@ -101,7 +101,7 @@ class Empleado(models.Model):
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    codigo_empleado = models.CharField(max_length=10, unique=True, default=uuid.uuid4().hex[:10].upper())
+    codigo_empleado = models.CharField(max_length=10, unique=True)
     departamento = models.CharField(max_length=20, choices=DEPARTAMENTOS)
     fecha_contratacion = models.DateField()
     salario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -114,6 +114,11 @@ class Empleado(models.Model):
     
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.codigo_empleado}"
+    
+    def save(self, *args, **kwargs):
+        if not self.codigo_empleado:
+            self.codigo_empleado = str(uuid.uuid4())[:10].upper()
+        super().save(*args, **kwargs)
 
 
 class SolicitudCredito(models.Model):
@@ -160,7 +165,13 @@ class SolicitudCredito(models.Model):
 
 class PlanPago(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    solicitud = models.OneToOneField(SolicitudCredito, on_delete=models.CASCADE, related_name='plan')
+    solicitud = models.ForeignKey(
+    SolicitudCredito,
+    on_delete=models.CASCADE,
+    related_name='plan',
+    to_field='id',         # referencia explícita al campo UUID
+    db_column='solicitud_id'  # nombre de columna en la BD
+    )
     metodo = models.CharField(max_length=20, default='frances')
     moneda = models.CharField(max_length=10, default='BOB')
     primera_cuota_fecha = models.DateField()
