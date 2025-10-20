@@ -6,3 +6,5 @@ django-environ
 django-extensions
 psycopg2-binary
 reportlab
+openpyxl
+requests 
