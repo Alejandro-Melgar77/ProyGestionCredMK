@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # --------------------
+  # Servicio de Base de Datos: PostgreSQL
+  # --------------------
+  db:
+    image: postgres:13-alpine # Una versión estable y ligera
+    container_name: postgres_db
+    ports:
+      - "5432:5432" # Expone el puerto de la base de datos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/ # Monta un volumen para persistir los datos
+    environment:
+      # Variables de entorno que usa la imagen de PostgreSQL (ver .env)
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+
+      
+    restart: always
+
+  # --------------------
+  # Servicio de Backend: Django
+  # --------------------
+  backend:
+    build:
+      context: ./backend # Indica la ubicación del Dockerfile del backend
+      dockerfile: Dockerfile
+    container_name: django_backend
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000" # Ejecuta migraciones y levanta el servidor
+    volumes:
+      - ./backend:/usr/src/app # Monta el código fuente para desarrollo
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env # Carga variables de entorno
+    depends_on:
+      - db # Asegura que la DB inicie antes que el backend
+    # Variables específicas para que Django se conecte a la DB
+    environment:
+      - DB_HOST=db # Usa el nombre del servicio de la DB
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+
+     
+
+  # --------------------
+  # Servicio de Frontend: React (Servido por Nginx)
+  # --------------------
+  frontend:
+    build:
+      context: ./frontend # Indica la ubicación del Dockerfile del frontend
+      dockerfile: Dockerfile
+    container_name: react_frontend
+    ports:
+      - "3000:80" # Mapea el puerto del contenedor (80 de Nginx) al puerto 3000 de tu host
+    volumes:
+      # Opcional: Montar el código fuente para desarrollo y reconstrucción instantánea
+      # Si usas la configuración multi-stage, es mejor solo usar el build en producción.
+      # Para desarrollo local con hot-reloading, probablemente querrás ejecutar React
+      # directamente en el host o modificar la etapa de build para usar Node para servir.
+      - ./frontend:/app
+      # Esta línea es para desarrollo con Node.js en lugar de Nginx
+      # command: npm start # Si se usa la imagen de Node como base
+
+  # --------------------
+  # Servicio de Administración: pgAdmin 4
+  # --------------------
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    ports:
+      - "5050:80" # Acceso a pgAdmin en http://localhost:5050
+    environment:
+      # Credenciales para acceder a la interfaz de pgAdmin
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+# --------------------
+# Volúmenes para persistencia de datos
+# --------------------
+volumes:
+  postgres_data: 
+  pgadmin_data:
