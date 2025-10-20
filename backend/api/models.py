@@ -272,3 +272,43 @@ class DocumentoAdjunto(models.Model):
 
     def __str__(self):
         return f'{self.solicitud_id} - {self.documento_tipo.codigo}'
+
+class ValidacionDocumento(models.Model):
+    ESTADOS_VALIDACION = [
+        ('PENDIENTE', 'Pendiente'),
+        ('VALIDADO', 'Validado'),
+        ('OBSERVADO', 'Observado'),
+        ('RECHAZADO', 'Rechazado'),
+    ]
+    
+    documento = models.ForeignKey('DocumentoAdjunto', on_delete=models.CASCADE, related_name='validaciones')
+    estado = models.CharField(max_length=20, choices=ESTADOS_VALIDACION, default='PENDIENTE')
+    score_confianza = models.FloatField(null=True, blank=True)
+    observaciones = models.TextField(blank=True)
+    campos_extraidos = models.JSONField(default=dict)  # Para almacenar datos extraídos por IA
+    fecha_validacion = models.DateTimeField(auto_now_add=True)
+    validado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        db_table = 'validacion_documento'
+
+    def __str__(self):
+        return f"Validación {self.documento.id} - {self.estado}"
+
+class ResultadoValidacionIA(models.Model):
+    solicitud = models.ForeignKey('SolicitudCredito', on_delete=models.CASCADE, related_name='resultados_ia')
+    score_global = models.FloatField()
+    recomendacion = models.CharField(max_length=50)  # APROBAR, RECHAZAR, REVISAR_MANUAL
+    factores_riesgo = models.JSONField(default=list)
+    factores_positivos = models.JSONField(default=list)
+    confianza_modelo = models.FloatField()
+    detalles_analisis = models.JSONField(default=dict, blank=True)
+    fecha_procesamiento = models.DateTimeField(auto_now_add=True)
+    metadata_modelo = models.JSONField(default=dict)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'resultado_validacion_ia'
+
+    def __str__(self):
+        return f"IA {self.solicitud.id} - {self.recomendacion}"

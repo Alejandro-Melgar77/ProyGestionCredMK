@@ -1,0 +1,33 @@
+.information-validation-container {
+  padding: 16px;
+}
+
+.error-message {
+  color: red;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.control-card {
+  margin-bottom: 24px;
+}
+
+.control-grid {
+  margin-top: 16px;
+}
+
+.processing-box {
+  margin-top: 16px;
+}
+
+.riesgo-list {
+  margin-top: 12px;
+}
+
+.dialog-score {
+  margin-top: 12px;
+}
+
+h2 {
+  margin-bottom: 16px;
+}

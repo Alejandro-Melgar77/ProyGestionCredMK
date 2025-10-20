@@ -7,7 +7,7 @@ from rest_framework.validators import UniqueValidator
 from .models import (
     Rol, Permiso, RolPermiso, UserProfile, Bitacora,
     Cliente, Empleado, SolicitudCredito, PlanPago, PlanCuota,
-    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto
+    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA
 )
 
 # =========================================================
@@ -649,3 +649,41 @@ class ChecklistItemSerializer(serializers.Serializer):
     archivo_url = serializers.CharField(allow_null=True, required=False)
     fecha_emision = serializers.DateField(allow_null=True, required=False)
     documento_tipo_id = serializers.IntegerField()
+
+class ValidacionDocumentoSerializer(serializers.ModelSerializer):
+    documento_info = serializers.SerializerMethodField()
+    validado_por_nombre = serializers.CharField(source='validado_por.username', read_only=True)
+
+    class Meta:
+        model = ValidacionDocumento
+        fields = '__all__'
+
+    def get_documento_info(self, obj):
+        return {
+            'id': obj.documento.id,
+            'tipo': obj.documento.documento_tipo.nombre,
+            'archivo_url': obj.documento.archivo.url if obj.documento.archivo else None
+        }
+
+class ResultadoValidacionIASerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadoValidacionIA
+        fields = '__all__'
+
+class ProcesarValidacionSerializer(serializers.Serializer):
+    solicitud_id = serializers.UUIDField()
+    usar_ia = serializers.BooleanField(default=True)
+    criterios_manuales = serializers.JSONField(required=False)
+
+    def validate_solicitud_id(self, value):
+        try:
+            solicitud = SolicitudCredito.objects.get(id=value)
+            return value
+        except SolicitudCredito.DoesNotExist:
+            raise serializers.ValidationError("Solicitud no encontrada")
+
+class DocumentoValidacionSerializer(serializers.Serializer):
+    documento_id = serializers.IntegerField()
+    estado = serializers.ChoiceField(choices=ValidacionDocumento.ESTADOS_VALIDACION)
+    observaciones = serializers.CharField(required=False, allow_blank=True)
+    score_confianza = serializers.FloatField(required=False, min_value=0, max_value=1)
