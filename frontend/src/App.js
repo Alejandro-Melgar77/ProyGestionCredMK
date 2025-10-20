@@ -27,6 +27,7 @@ import SolicitudDetail from './pages/solicitudes/SolicitudDetail';
 import SolicitudChecklist from './pages/solicitudes/SolicitudChecklist';
 import PlanView from './pages/solicitudes/PlanView';
 import Simulador from './pages/solicitudes/Simulador';
+import InformationValidation from './components/InformationValidation/InformationValidation';
 
 // Productos
 import RequisitosEditor from './pages/productos/RequisitosEditor';
@@ -200,7 +201,14 @@ function App() {
             </RequireAuth>
           }
         />
-
+        <Route
+          path="/validacion/:solicitudId"
+          element={
+            <RequireAuth authed={isAuthenticated} loading={authLoading}>
+              <Layout><InformationValidation /></Layout>
+            </RequireAuth>
+          }
+        />
         {/* 404 -> Dashboard o Login según estado */}
         <Route
           path="*"
