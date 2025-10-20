@@ -7,7 +7,7 @@ from rest_framework.validators import UniqueValidator
 from .models import (
     Rol, Permiso, RolPermiso, UserProfile, Bitacora,
     Cliente, Empleado, SolicitudCredito, PlanPago, PlanCuota,
-    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto
+    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA
 )
 
 # =========================================================
@@ -26,6 +26,7 @@ class ClienteNestedSerializer(serializers.ModelSerializer):
     def get_user_info(self, obj):
         u = obj.user
         return {
+            "id": u.id,
             "username": u.username,
             "first_name": u.first_name,
             "last_name": u.last_name,
@@ -64,28 +65,59 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """
-    Crea User + UserProfile + Cliente.
-    Si vas a enviar campos de Cliente (tipo_documento, numero_documento, etc.),
-    se 'popean' aquí y se crean en la tabla Cliente.
+    Crea User + UserProfile + Cliente (solo si el rol es cliente).
     """
     email = serializers.EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
     rol_id = serializers.IntegerField(write_only=True, required=False)
+    
+    # Agregar campos de cliente
+    tipo_documento = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    numero_documento = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    telefono = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    direccion = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    fecha_nacimiento = serializers.DateField(write_only=True, required=False, allow_null=True)
+    ocupacion = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    ingresos_mensuales = serializers.DecimalField(
+        write_only=True, 
+        required=False, 
+        allow_null=True, 
+        max_digits=12, 
+        decimal_places=2
+    )
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'password2', 'email', 'first_name', 'last_name', 'is_active', 'rol_id']
+        fields = [
+            'id', 'username', 'password', 'password2', 'email', 
+            'first_name', 'last_name', 'is_active', 'rol_id',
+            'tipo_documento', 'numero_documento', 'telefono', 
+            'direccion', 'fecha_nacimiento', 'ocupacion', 'ingresos_mensuales'
+        ]
+        read_only_fields = ['id']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Las contraseñas no coinciden."})
-        nd = attrs.get('numero_documento')
-        if nd and Cliente.objects.filter(numero_documento=nd).exists():
-            raise serializers.ValidationError({"numero_documento": "Ya existe un cliente con ese número."})
+        
+        # Solo validar número de documento si se va a crear cliente
+        rol_id = attrs.get('rol_id')
+        if rol_id:
+            try:
+                rol = Rol.objects.get(pk=rol_id)
+                if rol.nombre.lower() == 'cliente':
+                    nd = attrs.get('numero_documento')
+                    if nd and Cliente.objects.filter(numero_documento=nd).exists():
+                        raise serializers.ValidationError({"numero_documento": "Ya existe un cliente con ese número."})
+            except Rol.DoesNotExist:
+                pass
+        
         return attrs
 
     def create(self, validated_data):
+        print("🔍 Validated_data recibido:", validated_data)  # Debug
+        
         # --- extrae campos de Cliente ---
         rol_id = validated_data.pop('rol_id', None)
         tipo_documento = validated_data.pop('tipo_documento', None)
@@ -108,6 +140,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 rol = Rol.objects.get(pk=rol_id)
             except Rol.DoesNotExist:
                 rol = None
+        
+        # Si no hay rol, asignar por defecto según la lógica de negocio
         if not rol:
             rol = Rol.objects.filter(nombre__iexact='Cliente').first()
             if not rol:
@@ -115,23 +149,40 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         UserProfile.objects.create(user=user, rol=rol)
 
-        # --- crea Cliente ---
-        if not tipo_documento:
-            tipo_documento = 'CI'
-        if not numero_documento:
-            numero_documento = f"AUTO-{user.id}"
+        # --- crea Cliente SOLO si el rol es cliente ---
+        if rol and rol.nombre.lower() == 'cliente':
+            print("🔍 Creando cliente con datos:")  # Debug
+            print("  - tipo_documento:", tipo_documento)
+            print("  - numero_documento:", numero_documento)
+            print("  - telefono:", telefono)
+            print("  - direccion:", direccion)
+            print("  - fecha_nacimiento:", fecha_nacimiento)
+            print("  - ocupacion:", ocupacion)
+            print("  - ingresos_mensuales:", ingresos_mensuales)
+            
+            if not tipo_documento:
+                tipo_documento = 'CI'
+            if not numero_documento:
+                numero_documento = f"AUTO-{user.id}"
 
-        Cliente.objects.create(
-            user=user,
-            tipo_documento=tipo_documento,
-            numero_documento=numero_documento,
-            telefono=telefono or '',
-            direccion=direccion or '',
-            fecha_nacimiento=fecha_nacimiento,
-            ocupacion=ocupacion or '',
-            ingresos_mensuales=ingresos_mensuales,
-        )
+            cliente = Cliente.objects.create(
+                user=user,
+                tipo_documento=tipo_documento,
+                numero_documento=numero_documento,
+                telefono=telefono or '',
+                direccion=direccion or '',
+                fecha_nacimiento=fecha_nacimiento,
+                ocupacion=ocupacion or '',
+                ingresos_mensuales=ingresos_mensuales,
+            )
+            print("✅ Cliente creado:", cliente.id)  # Debug
+        
         return user
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['id'] = instance.id
+        return representation
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -243,15 +294,43 @@ class ClienteSerializer(serializers.ModelSerializer):
             'ingresos_mensuales', 'fecha_registro', 'puntuacion_crediticia',
             'es_cliente_preferencial'
         )
+    def get_user_info(self, obj):
+        u = obj.user
+        return {
+            "id": u.id,
+            "username": u.username,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "email": u.email,
+            "is_active": u.is_active,
+        }
 
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     user_info = UserSerializer(source='user', read_only=True)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
 
     class Meta:
         model = Empleado
-        fields = '__all__'
+        fields = [
+            'id',
+            'user',
+            'user_info',
+            'codigo_empleado',
+            'departamento',
+            'fecha_contratacion',
+            'salario',
+            'es_supervisor',
+            'puede_aprobar_creditos',
+            'limite_aprobacion',
+        ]
 
+    def create(self, validated_data):
+        # Generar código de empleado si no se proporciona
+        if not validated_data.get('codigo_empleado'):
+            import uuid
+            validated_data['codigo_empleado'] = str(uuid.uuid4())[:10].upper()
+        return super().create(validated_data)
 
 class UserDetailSerializer(serializers.ModelSerializer):
     cliente_info = serializers.SerializerMethodField()
@@ -570,3 +649,41 @@ class ChecklistItemSerializer(serializers.Serializer):
     archivo_url = serializers.CharField(allow_null=True, required=False)
     fecha_emision = serializers.DateField(allow_null=True, required=False)
     documento_tipo_id = serializers.IntegerField()
+
+class ValidacionDocumentoSerializer(serializers.ModelSerializer):
+    documento_info = serializers.SerializerMethodField()
+    validado_por_nombre = serializers.CharField(source='validado_por.username', read_only=True)
+
+    class Meta:
+        model = ValidacionDocumento
+        fields = '__all__'
+
+    def get_documento_info(self, obj):
+        return {
+            'id': obj.documento.id,
+            'tipo': obj.documento.documento_tipo.nombre,
+            'archivo_url': obj.documento.archivo.url if obj.documento.archivo else None
+        }
+
+class ResultadoValidacionIASerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadoValidacionIA
+        fields = '__all__'
+
+class ProcesarValidacionSerializer(serializers.Serializer):
+    solicitud_id = serializers.UUIDField()
+    usar_ia = serializers.BooleanField(default=True)
+    criterios_manuales = serializers.JSONField(required=False)
+
+    def validate_solicitud_id(self, value):
+        try:
+            solicitud = SolicitudCredito.objects.get(id=value)
+            return value
+        except SolicitudCredito.DoesNotExist:
+            raise serializers.ValidationError("Solicitud no encontrada")
+
+class DocumentoValidacionSerializer(serializers.Serializer):
+    documento_id = serializers.IntegerField()
+    estado = serializers.ChoiceField(choices=ValidacionDocumento.ESTADOS_VALIDACION)
+    observaciones = serializers.CharField(required=False, allow_blank=True)
+    score_confianza = serializers.FloatField(required=False, min_value=0, max_value=1)

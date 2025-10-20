@@ -30,7 +30,7 @@ from .models import (
     Rol, Permiso, RolPermiso, UserProfile, Bitacora,
     Cliente, Empleado, SolicitudCredito,
     PlanPago, ProductoFinanciero,
-    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto,
+    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA
 )
 
 from .serializers import (
@@ -47,7 +47,7 @@ from .serializers import (
     ClienteNestedSerializer, EmpleadoNestedSerializer,
 
     # Solicitudes
-    SolicitudCreateSerializer, SolicitudListSerializer, SolicitudDetailSerializer,
+    SolicitudCreateSerializer, SolicitudListSerializer, SolicitudDetailSerializer, 
 
     # Plan pago
     PlanPagoDTO,
@@ -55,6 +55,7 @@ from .serializers import (
     # Productos / Documentos
     ProductoFinancieroSerializer, DocumentoAdjuntoSerializer, DocumentoTipoSerializer,
     RequisitoProductoDocumentoSerializer, RequisitoProductoDocumentoWriteSerializer,
+    ProcesarValidacionSerializer, ValidacionDocumentoSerializer, ResultadoValidacionIASerializer, DocumentoValidacionSerializer
 )
 
 # =========================================================
@@ -174,12 +175,12 @@ class UserViewSet(viewsets.ModelViewSet):
 #                    CLIENTE / EMPLEADO
 # =========================================================
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.all()
+    queryset = Cliente.objects.select_related('user').all()
     serializer_class = ClienteSerializer
     permission_classes = [IsAuthenticated]
 
 class EmpleadoViewSet(viewsets.ModelViewSet):
-    queryset = Empleado.objects.all()
+    queryset = Empleado.objects.select_related('user').all()
     serializer_class = EmpleadoSerializer
     permission_classes = [IsAuthenticated]
 
@@ -604,3 +605,280 @@ class DocumentoAdjuntoViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
         return resp
+    
+class ValidacionInformacionViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, IsOfficialOrAdmin]
+    
+    @action(detail=False, methods=['post'], url_path='iniciar')
+    def iniciar_validacion(self, request):
+        """Inicia la validación automática de documentos usando IA"""
+        try:
+            print("🔍 Iniciando validación...")  # Debug
+            serializer = ProcesarValidacionSerializer(data=request.data)
+            
+            if not serializer.is_valid():
+                print(f"❌ Error en serializer: {serializer.errors}")
+                return Response(serializer.errors, status=400)
+            
+            solicitud_id = serializer.validated_data['solicitud_id']
+            usar_ia = serializer.validated_data['usar_ia']
+            
+            print(f"🔍 Buscando solicitud: {solicitud_id}")
+            
+            try:
+                solicitud = SolicitudCredito.objects.get(id=solicitud_id)
+                print(f"✅ Solicitud encontrada: {solicitud.id}")
+            except SolicitudCredito.DoesNotExist:
+                print("❌ Solicitud no encontrada")
+                return Response({'error': 'Solicitud no encontrada'}, status=404)
+            
+            with transaction.atomic():
+                if usar_ia:
+                    print("🤖 Procesando con IA...")
+                    resultado = self._procesar_con_ia(solicitud, request.user)
+                else:
+                    print("👨‍💼 Procesando validación manual...")
+                    resultado = self._procesar_validacion_manual(solicitud, request.user)
+                
+                print(f"✅ Resultado: {resultado}")
+                return Response(resultado, status=200)
+                
+        except Exception as e:
+            print(f"💥 Error general en iniciar_validacion: {str(e)}")
+            import traceback
+            print(f"📋 Traceback: {traceback.format_exc()}")
+            return Response({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+    
+    def _procesar_con_ia(self, solicitud, usuario):
+        """Versión mejorada que usa análisis detallado por tipo de documento"""
+        try:
+            from api.services.ia_validation_service import TesseractOCRService, CreditScoringService
+            
+            ocr_service = TesseractOCRService()
+            scoring_service = CreditScoringService()
+            
+            documentos = DocumentoAdjunto.objects.filter(solicitud=solicitud)
+            resultados_documentos = []
+            scores_documentos = []
+            detailed_analysis = {}
+            
+            print(f"📄 Procesando {documentos.count()} documentos con análisis mejorado...")
+            
+            for documento in documentos:
+                try:
+                    print(f"  🔍 Analizando: {documento.documento_tipo.nombre}")
+                    
+                    if not documento.archivo:
+                        print("    ⚠️ Sin archivo, saltando...")
+                        continue
+                    
+                    # Extraer texto
+                    texto_extraido = ocr_service.extract_text_from_document(documento.archivo)
+                    
+                    # Análisis detallado por tipo de documento
+                    doc_analysis = ocr_service.analyze_document_content(
+                        documento.documento_tipo, 
+                        texto_extraido, 
+                        documento.archivo
+                    )
+                    
+                    # Usar el score calculado del análisis detallado
+                    score_confianza = doc_analysis['document_score']
+                    estado = 'VALIDADO' if score_confianza > 0.6 else 'OBSERVADO'
+                    
+                    # Crear mensaje de observación basado en el análisis
+                    observacion = "Documento válido" if estado == 'VALIDADO' else "Problemas detectados en documento"
+                    if doc_analysis['validation_errors']:
+                        observacion += f". Errores: {', '.join(doc_analysis['validation_errors'])}"
+                    
+                    # Guardar validación
+                    validacion_doc = ValidacionDocumento.objects.create(
+                        documento=documento,
+                        estado=estado,
+                        score_confianza=score_confianza,
+                        observaciones=observacion,
+                        campos_extraidos=doc_analysis,
+                        validado_por=usuario
+                    )
+                    
+                    resultados_documentos.append(validacion_doc)
+                    scores_documentos.append(score_confianza)
+                    detailed_analysis[str(documento.documento_tipo.id)] = doc_analysis
+                    
+                    print(f"    ✅ Análisis completado - Score: {score_confianza}, Estado: {estado}")
+                    
+                except Exception as e:
+                    print(f"    ❌ Error procesando documento: {e}")
+                    # En caso de error, score muy bajo
+                    validacion_doc = ValidacionDocumento.objects.create(
+                        documento=documento,
+                        estado='OBSERVADO',
+                        score_confianza=0.1,
+                        observaciones=f"Error en procesamiento: {str(e)}",
+                        validado_por=usuario
+                    )
+                    resultados_documentos.append(validacion_doc)
+                    scores_documentos.append(0.1)
+            
+            # Calcular score promedio de documentos
+            score_promedio = sum(scores_documentos) / len(scores_documentos) if scores_documentos else 0.1
+            
+            # Preparar datos para scoring crediticio
+            solicitud_data = self._preparar_datos_solicitud(solicitud)
+            documentos_data = {
+                'score_promedio': score_promedio,
+                'total_documentos': len(documentos),
+                'documentos_validados': len([d for d in resultados_documentos if d.estado == 'VALIDADO']),
+                'detailed_analysis': detailed_analysis
+            }
+            
+            print("🧮 Calculando scoring crediticio con análisis mejorado...")
+            analisis_riesgo = scoring_service.analyze_credit_risk(solicitud_data, documentos_data)
+            
+            # Guardar resultado (asegúrate de que el modelo tenga los campos necesarios)
+            resultado_data = {
+                'solicitud': solicitud,
+                'score_global': analisis_riesgo['score_global'],
+                'recomendacion': analisis_riesgo['recomendacion'],
+                'factores_riesgo': analisis_riesgo['factores_riesgo'],
+                'factores_positivos': analisis_riesgo.get('factores_positivos', []),
+                'confianza_modelo': analisis_riesgo['confianza_modelo'],
+            }
+            
+            # Solo agregar detalles_analisis si el modelo lo soporta
+            if hasattr(ResultadoValidacionIA, 'detalles_analisis'):
+                resultado_data['detalles_analisis'] = analisis_riesgo.get('detalles_analisis', {})
+            
+            resultado_ia = ResultadoValidacionIA.objects.create(**resultado_data)
+            
+            # Actualizar solicitud
+            solicitud.estado = 'EVALUADA'
+            solicitud.score_riesgo = analisis_riesgo['score_global'] * 100
+            solicitud.save()
+            
+            return {
+                'solicitud_id': str(solicitud.id),
+                'estado': 'VALIDACION_COMPLETADA',
+                'score_global': analisis_riesgo['score_global'],
+                'recomendacion': analisis_riesgo['recomendacion'],
+                'documentos_procesados': len(resultados_documentos),
+                'factores_riesgo': analisis_riesgo['factores_riesgo'],
+                'factores_positivos': analisis_riesgo.get('factores_positivos', []),
+                'score_promedio_documentos': score_promedio,
+                'resultado_ia_id': resultado_ia.id
+            }
+            
+        except Exception as e:
+            print(f"💥 Error en _procesar_con_ia mejorado: {str(e)}")
+            import traceback
+            print(f"📋 Traceback: {traceback.format_exc()}")
+            raise
+    
+    def _procesar_validacion_manual(self, solicitud, usuario):
+        """Procesa validación manual"""
+        documentos = DocumentoAdjunto.objects.filter(solicitud=solicitud)
+        
+        for documento in documentos:
+            # Validación manual básica - en una implementación real esto vendría del frontend
+            ValidacionDocumento.objects.create(
+                documento=documento,
+                estado='VALIDADO',
+                score_confianza=0.9,
+                observaciones='Validado manualmente',
+                validado_por=usuario
+            )
+        
+        # Actualizar estado de la solicitud
+        solicitud.estado = 'EVALUADA'
+        solicitud.save()
+        
+        return {
+            'solicitud_id': str(solicitud.id),
+            'estado': 'VALIDACION_MANUAL_COMPLETADA',
+            'documentos_procesados': len(documentos)
+        }
+    
+    def _preparar_datos_solicitud(self, solicitud):
+        """Prepara datos de la solicitud para el análisis"""
+        cliente = solicitud.cliente
+        edad = None
+        if cliente.fecha_nacimiento:
+            from datetime import date
+            hoy = date.today()
+            edad = hoy.year - cliente.fecha_nacimiento.year - (
+                (hoy.month, hoy.day) < (cliente.fecha_nacimiento.month, cliente.fecha_nacimiento.day)
+            )
+        
+        return {
+            'monto': float(solicitud.monto),
+            'plazo_meses': solicitud.plazo_meses,
+            'tipo_credito': solicitud.tipo_credito,
+            'tipo_trabajador': solicitud.tipo_trabajador,
+            'ingresos_mensuales': float(cliente.ingresos_mensuales) if cliente.ingresos_mensuales else 0,
+            'edad': edad or 35,
+            'producto': solicitud.producto.nombre if solicitud.producto else 'N/A'
+        }
+    
+    @action(detail=False, methods=['get'], url_path='resultado/(?P<solicitud_id>[^/.]+)')
+    def obtener_resultado(self, request, solicitud_id=None):
+        """Obtiene el resultado de la validación de una solicitud"""
+        try:
+            print(f"🔍 Obteniendo resultado para: {solicitud_id}")
+            solicitud = SolicitudCredito.objects.get(id=solicitud_id)
+            
+            validaciones_docs = ValidacionDocumento.objects.filter(
+                documento__solicitud=solicitud
+            ).select_related('documento', 'documento__documento_tipo', 'validado_por')
+            
+            resultado_ia = ResultadoValidacionIA.objects.filter(solicitud=solicitud).first()
+            
+            data = {
+                'solicitud': {
+                    'id': str(solicitud.id),
+                    'estado': solicitud.estado,
+                    'cliente': f"{solicitud.cliente.user.first_name} {solicitud.cliente.user.last_name}",
+                    'monto': float(solicitud.monto),
+                    'score_riesgo': float(solicitud.score_riesgo) if solicitud.score_riesgo else None
+                },
+                'documentos': ValidacionDocumentoSerializer(validaciones_docs, many=True).data,
+                'analisis_ia': ResultadoValidacionIASerializer(resultado_ia).data if resultado_ia else None
+            }
+            
+            return Response(data, status=200)
+            
+        except SolicitudCredito.DoesNotExist:
+            return Response({'error': 'Solicitud no encontrada'}, status=404)
+        except Exception as e:
+            print(f"💥 Error en obtener_resultado: {str(e)}")
+            return Response({'error': str(e)}, status=500)
+    
+    @action(detail=False, methods=['post'], url_path='manual')
+    def validar_manual(self, request):
+        """Endpoint para validación manual de documentos individuales"""
+        try:
+            print("🔍 Iniciando validación manual...")
+            serializer = DocumentoValidacionSerializer(data=request.data)
+            
+            if not serializer.is_valid():
+                print(f"❌ Error en serializer: {serializer.errors}")
+                return Response(serializer.errors, status=400)
+            
+            documento = DocumentoAdjunto.objects.get(id=serializer.validated_data['documento_id'])
+            
+            validacion, created = ValidacionDocumento.objects.update_or_create(
+                documento=documento,
+                defaults={
+                    'estado': serializer.validated_data['estado'],
+                    'observaciones': serializer.validated_data.get('observaciones', ''),
+                    'score_confianza': serializer.validated_data.get('score_confianza', 0.9),
+                    'validado_por': request.user
+                }
+            )
+            
+            return Response(ValidacionDocumentoSerializer(validacion).data, status=200)
+            
+        except DocumentoAdjunto.DoesNotExist:
+            return Response({'error': 'Documento no encontrado'}, status=404)
+        except Exception as e:
+            print(f"💥 Error en validar_manual: {str(e)}")
+            return Response({'error': str(e)}, status=500)

@@ -16,13 +16,14 @@ export default function ClientManagement() {
 
   useEffect(() => {
     const load = async () => {
-      setBusy(true); setErr('');
+      setBusy(true);
+      setErr('');
       try {
-        const { data } = await api.get('/users/');
-        // data es array con campos + cliente_info / empleado_info
-        const onlyClients = (Array.isArray(data) ? data : data?.results || [])
-          .filter(u => !!u.cliente_info);
-        setRows(onlyClients);
+        // Traemos clientes desde la API
+        const { data } = await api.get('/clientes/');
+        // data puede venir paginado o como array
+        const clients = Array.isArray(data) ? data : data?.results || [];
+        setRows(clients);
       } catch (e) {
         console.error('Fetch clients error:', e);
         setErr('Error al cargar los clientes');
@@ -36,18 +37,18 @@ export default function ClientManagement() {
 
   const filtered = useMemo(() => {
     const q = filters.q.toLowerCase().trim();
-    return rows.filter(u => {
-      const c = u.cliente_info || {};
+    return rows.filter((c) => {
+      const user = c.user_info || {};
       const matchQ =
-        u.username?.toLowerCase().includes(q) ||
-        u.first_name?.toLowerCase().includes(q) ||
-        u.last_name?.toLowerCase().includes(q) ||
-        (c.documento || '').toLowerCase().includes(q);
+        user.username?.toLowerCase().includes(q) ||
+        user.first_name?.toLowerCase().includes(q) ||
+        user.last_name?.toLowerCase().includes(q) ||
+        (c.numero_documento || '').toLowerCase().includes(q);
 
-      const tipo = (c.documento || '').split(' ')[0]; // p.ej. "CI 1234"
-      const matchTipo = !filters.tipo_documento || tipo === filters.tipo_documento;
+      const matchTipo =
+        !filters.tipo_documento || c.tipo_documento === filters.tipo_documento;
 
-      const pref = c.preferencial === true; // viene como booleano
+      const pref = c.es_cliente_preferencial === true;
       const matchPref =
         filters.preferencial === '' ||
         (filters.preferencial === 'true' && pref) ||
@@ -115,19 +116,21 @@ export default function ClientManagement() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(u => {
-                const c = u.cliente_info || {};
+              {filtered.map((c) => {
+                const user = c.user_info || {};
                 return (
-                  <tr key={u.id}>
-                    <td>{u.username}</td>
-                    <td>{`${u.first_name || ''} ${u.last_name || ''}`.trim() || '—'}</td>
-                    <td>{u.email}</td>
-                    <td>{c.documento || '—'}</td>
+                  <tr key={c.id}>
+                    <td>{user.username || '—'}</td>
+                    <td>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || '—'}</td>
+                    <td>{user.email || '—'}</td>
+                    <td>{c.numero_documento || '—'}</td>
                     <td>{c.telefono || '—'}</td>
-                    <td>{c.ingresos ?? '—'}</td>
+                    <td>{c.ingresos_mensuales ?? '—'}</td>
                     <td>
-                      <span className={`client-type ${c.preferencial ? 'preferential' : 'regular'}`}>
-                        {c.preferencial ? 'Sí' : 'No'}
+                      <span
+                        className={`client-type ${c.es_cliente_preferencial ? 'preferential' : 'regular'}`}
+                      >
+                        {c.es_cliente_preferencial ? 'Sí' : 'No'}
                       </span>
                     </td>
                   </tr>
