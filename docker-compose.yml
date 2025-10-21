@@ -5,7 +5,7 @@ services:
   # Servicio de Base de Datos: PostgreSQL
   # --------------------
   db:
-    image: postgres:13-alpine # Una versión estable y ligera
+    image: postgres:14-alpine # Una versión estable y ligera
     container_name: postgres_db
     ports:
       - "5432:5432" # Expone el puerto de la base de datos
