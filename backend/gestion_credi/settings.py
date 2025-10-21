@@ -35,8 +35,8 @@ environ.Env.read_env(os.path.join(BASE_DIR, '..', '.env'))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.0.200", "localhost", "127.0.0.1"]
-
+#ALLOWED_HOSTS = ["192.168.0.200", "localhost", "127.0.0.1",]
+ALLOWED_HOSTS = ['*']  # solo para desarrollo
 
 # Application definition
 
