@@ -7,7 +7,7 @@ from rest_framework.validators import UniqueValidator
 from .models import (
     Rol, Permiso, RolPermiso, UserProfile, Bitacora,
     Cliente, Empleado, SolicitudCredito, PlanPago, PlanCuota,
-    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA
+    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago
 )
 
 # =========================================================
@@ -687,3 +687,121 @@ class DocumentoValidacionSerializer(serializers.Serializer):
     estado = serializers.ChoiceField(choices=ValidacionDocumento.ESTADOS_VALIDACION)
     observaciones = serializers.CharField(required=False, allow_blank=True)
     score_confianza = serializers.FloatField(required=False, min_value=0, max_value=1)
+
+class CuotaPendienteSerializer(serializers.ModelSerializer):
+    solicitud_info = serializers.SerializerMethodField()
+    producto_info = serializers.SerializerMethodField()
+    dias_vencimiento = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PlanCuota
+        fields = [
+            'id', 'nro_cuota', 'fecha_vencimiento', 'capital', 'interes', 
+            'cuota', 'saldo', 'estado', 'solicitud_info', 'producto_info', 'dias_vencimiento'
+        ]
+    
+    def get_solicitud_info(self, obj):
+        solicitud = obj.plan.solicitud
+        return {
+            'id': solicitud.id,
+            'monto_total': solicitud.monto,
+            'cliente_nombre': f"{solicitud.cliente.user.first_name} {solicitud.cliente.user.last_name}"
+        }
+    
+    def get_producto_info(self, obj):
+        producto = obj.plan.solicitud.producto
+        return {
+            'nombre': producto.nombre if producto else 'N/A',
+            'tipo': producto.tipo if producto else 'N/A'
+        }
+    
+    def get_dias_vencimiento(self, obj):
+        from datetime import date
+        if obj.estado == 'PENDIENTE' and obj.fecha_vencimiento:
+            dias = (obj.fecha_vencimiento - date.today()).days
+            return max(dias, 0) if dias >= 0 else abs(dias)
+        return 0
+    
+class StripePaymentIntentSerializer(serializers.Serializer):
+    cuota_id = serializers.UUIDField()
+    email_notificacion = serializers.EmailField(required=False)
+
+class ConfirmarPagoSerializer(serializers.Serializer):
+    payment_intent_id = serializers.CharField()
+    cuota_id = serializers.UUIDField()
+
+class PagoTarjetaSerializer(serializers.Serializer):
+    cuota_id = serializers.UUIDField()
+    numero_tarjeta = serializers.CharField(max_length=19, min_length=13)
+    nombre_titular = serializers.CharField(max_length=100)
+    fecha_expiracion = serializers.CharField(max_length=7)  # MM/YYYY
+    cvv = serializers.CharField(max_length=4, min_length=3)
+    email_notificacion = serializers.EmailField(required=False)
+    
+    def validate_numero_tarjeta(self, value):
+        # Limpiar espacios y validar que sea numérico
+        cleaned = value.replace(' ', '')
+        if not cleaned.isdigit():
+            raise serializers.ValidationError("El número de tarjeta debe contener solo dígitos")
+        
+        # Validar según algoritmo de Luhn (opcional)
+        if not self.validar_luhn(cleaned):
+            raise serializers.ValidationError("Número de tarjeta inválido")
+            
+        return cleaned
+    
+    def validate_fecha_expiracion(self, value):
+        try:
+            from datetime import datetime
+            mes, ano = value.split('/')
+            mes = int(mes.strip())
+            ano = int(ano.strip())
+            
+            if mes < 1 or mes > 12:
+                raise serializers.ValidationError("Mes inválido")
+                
+            # Asumir año completo (2025) o corto (25)
+            if ano < 100:
+                ano += 2000
+                
+            fecha_exp = datetime(ano, mes, 1)
+            if fecha_exp < datetime.now():
+                raise serializers.ValidationError("Tarjeta expirada")
+                
+        except (ValueError, IndexError):
+            raise serializers.ValidationError("Formato inválido. Use MM/YYYY")
+            
+        return value
+    
+    def validar_luhn(self, numero):
+        """Algoritmo de Luhn para validar tarjetas"""
+        def digits_of(n):
+            return [int(d) for d in str(n)]
+        digits = digits_of(numero)
+        odd_digits = digits[-1::-2]
+        even_digits = digits[-2::-2]
+        checksum = sum(odd_digits)
+        for d in even_digits:
+            checksum += sum(digits_of(d*2))
+        return checksum % 10 == 0
+
+class TransaccionPagoSerializer(serializers.ModelSerializer):
+    cuota_info = serializers.SerializerMethodField()
+    tarjeta_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TransaccionPago
+        fields = '__all__'
+    
+    def get_cuota_info(self, obj):
+        return {
+            'nro_cuota': obj.cuota.nro_cuota,
+            'monto': obj.cuota.cuota,
+            'fecha_vencimiento': obj.cuota.fecha_vencimiento
+        }
+    
+    def get_tarjeta_info(self, obj):
+        if obj.datos_pago.get('tarjeta'):
+            tarjeta = obj.datos_pago['tarjeta']
+            return f"{tarjeta.get('marca', 'Tarjeta')} •••• {tarjeta.get('ultimos_4', '')}"
+        return None

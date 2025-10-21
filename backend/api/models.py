@@ -187,6 +187,11 @@ class PlanPago(models.Model):
 
 class PlanCuota(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ESTADOS_CUOTA = (
+        ('PENDIENTE', 'Pendiente'),
+        ('PAGADA', 'Pagada'),
+        ('VENCIDA', 'Vencida'),
+    )
     plan = models.ForeignKey(PlanPago, on_delete=models.CASCADE, related_name='cuotas')
     nro_cuenta = models.IntegerField(default=0)  # (opcional) por si usas cuenta
     nro_cuota = models.PositiveIntegerField()
@@ -196,6 +201,8 @@ class PlanCuota(models.Model):
     cuota = models.DecimalField(max_digits=16, decimal_places=2)
     saldo = models.DecimalField(max_digits=16, decimal_places=2)
     ajuste_redondeo = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0.00'))
+    estado = models.CharField(max_length=20, choices=ESTADOS_CUOTA, default='PENDIENTE')
+    fecha_pago = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'plan_cuota'
@@ -312,3 +319,33 @@ class ResultadoValidacionIA(models.Model):
 
     def __str__(self):
         return f"IA {self.solicitud.id} - {self.recomendacion}"
+
+class TransaccionPago(models.Model):
+    ESTADOS = (
+        ('PENDIENTE', 'Pendiente'),
+        ('EXITOSO', 'Exitoso'),
+        ('FALLIDO', 'Fallido'),
+        ('REVERTIDO', 'Revertido'),
+    )
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cuota = models.ForeignKey('PlanCuota', on_delete=models.CASCADE, related_name='transacciones')
+    monto = models.DecimalField(max_digits=16, decimal_places=2)
+    fecha_transaccion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE')
+    
+    # Campos específicos de Stripe
+    stripe_payment_intent_id = models.CharField(max_length=100, blank=True, null=True)
+    stripe_client_secret = models.CharField(max_length=100, blank=True, null=True)
+    codigo_autorizacion = models.CharField(max_length=100, blank=True, null=True)
+    
+    metodo_pago = models.CharField(max_length=50, default='TARJETA_CREDITO')
+    datos_pago = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        db_table = 'transaccion_pago'
+        ordering = ['-fecha_transaccion']
+
+    def __str__(self):
+        return f"Transacción {self.id} - {self.estado}"
+   

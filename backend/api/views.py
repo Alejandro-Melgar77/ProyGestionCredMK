@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.utils import timezone
 
 from django.utils.timezone import now
 from django.contrib.auth.models import User
@@ -30,7 +31,7 @@ from .models import (
     Rol, Permiso, RolPermiso, UserProfile, Bitacora,
     Cliente, Empleado, SolicitudCredito,
     PlanPago, ProductoFinanciero,
-    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA
+    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, PlanCuota,
 )
 
 from .serializers import (
@@ -50,7 +51,7 @@ from .serializers import (
     SolicitudCreateSerializer, SolicitudListSerializer, SolicitudDetailSerializer, 
 
     # Plan pago
-    PlanPagoDTO,
+    PlanPagoDTO, TransaccionPagoSerializer, CuotaPendienteSerializer, PagoTarjetaSerializer, StripePaymentIntentSerializer, ConfirmarPagoSerializer,
 
     # Productos / Documentos
     ProductoFinancieroSerializer, DocumentoAdjuntoSerializer, DocumentoTipoSerializer,
@@ -882,3 +883,253 @@ class ValidacionInformacionViewSet(viewsets.ViewSet):
         except Exception as e:
             print(f"💥 Error en validar_manual: {str(e)}")
             return Response({'error': str(e)}, status=500)
+class PagoViewSet(viewsets.ViewSet):
+    # TEMPORAL: Quita la autenticación para testing
+    permission_classes = []  # Esto permite acceso sin autenticación
+    
+    @action(detail=False, methods=['get'], url_path='cuotas-pendientes')
+    def cuotas_pendientes(self, request):
+        """Obtener cuotas pendientes del cliente autenticado"""
+        try:
+            # TEMPORAL: Para testing, usa el primer cliente
+            cliente = Cliente.objects.get(numero_documento=1234567)
+            
+            if not cliente:
+                return Response(
+                    {'error': 'No hay clientes en la base de datos'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            cuotas = PlanCuota.objects.filter(
+                plan__solicitud__cliente=cliente,
+                estado='PENDIENTE'
+            ).select_related(
+                'plan', 
+                'plan__solicitud',
+                'plan__solicitud__producto'
+            ).order_by('fecha_vencimiento')
+            
+            print(f"📊 Encontradas {cuotas.count()} cuotas para cliente {cliente.id}")
+            
+            serializer = CuotaPendienteSerializer(cuotas, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            print(f"❌ Error en cuotas_pendientes: {str(e)}")
+            return Response(
+                {'error': f'Error interno: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    
+    @action(detail=False, methods=['post'], url_path='crear-payment-intent')
+    @transaction.atomic
+    def crear_payment_intent(self, request):
+        """Crear un PaymentIntent de Stripe para una cuota"""
+        from .services.stripe_service import StripeService
+        
+        serializer = StripePaymentIntentSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            data = serializer.validated_data
+            cliente = Cliente.objects.get(user=request.user)
+            
+            # Obtener cuota
+            cuota = PlanCuota.objects.get(
+                id=data['cuota_id'],
+                plan__solicitud__cliente=cliente,
+                estado='PENDIENTE'
+            )
+            
+            monto_cuota = float(cuota.cuota)
+            
+            # Crear transacción pendiente
+            transaccion = TransaccionPago.objects.create(
+                cuota=cuota,
+                monto=monto_cuota,
+                estado='PENDIENTE',
+                datos_pago={
+                    'email_notificacion': data.get('email_notificacion', ''),
+                    'metodo': 'stripe_card'
+                }
+            )
+            
+            # Crear PaymentIntent en Stripe
+            stripe_service = StripeService()
+            descripcion = f"Pago cuota {cuota.nro_cuota} - Crédito {cuota.plan.solicitud.id}"
+            metadatos = {
+                'cuota_id': str(cuota.id),
+                'transaccion_id': str(transaccion.id),
+                'solicitud_id': str(cuota.plan.solicitud.id),
+                'cliente_id': str(cliente.id)
+            }
+            
+            resultado = stripe_service.crear_payment_intent(
+                monto=monto_cuota,
+                moneda='BOB',  # Bolivianos
+                descripcion=descripcion,
+                metadatos=metadatos
+            )
+            
+            if resultado['estado'] == 'requiere_confirmacion':
+                # Actualizar transacción con datos de Stripe
+                transaccion.stripe_payment_intent_id = resultado['id_intento']
+                transaccion.stripe_client_secret = resultado['client_secret']
+                transaccion.save()
+                
+                return Response({
+                    'estado': 'requiere_confirmacion',
+                    'client_secret': resultado['client_secret'],
+                    'payment_intent_id': resultado['id_intento'],
+                    'monto': resultado['monto'],
+                    'moneda': resultado['moneda'],
+                    'transaccion_id': str(transaccion.id),
+                    'mensaje': 'PaymentIntent creado exitosamente'
+                })
+            else:
+                transaccion.estado = 'FALLIDO'
+                transaccion.datos_pago['error'] = resultado.get('mensaje', 'Error al crear pago')
+                transaccion.save()
+                
+                return Response({
+                    'estado': 'error',
+                    'mensaje': resultado.get('mensaje', 'Error al crear el pago')
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Cliente.DoesNotExist:
+            return Response(
+                {'error': 'Usuario no tiene perfil de cliente'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except PlanCuota.DoesNotExist:
+            return Response(
+                {'error': 'Cuota no encontrada o ya pagada'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Error interno del servidor: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], url_path='confirmar-pago')
+    @transaction.atomic
+    def confirmar_pago(self, request):
+        """Confirmar que un pago de Stripe fue exitoso"""
+        from .services.stripe_service import StripeService
+        
+        serializer = ConfirmarPagoSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            data = serializer.validated_data
+            cliente = Cliente.objects.get(user=request.user)
+            
+            # Obtener transacción
+            transaccion = TransaccionPago.objects.get(
+                stripe_payment_intent_id=data['payment_intent_id'],
+                cuota__plan__solicitud__cliente=cliente
+            )
+            
+            # Verificar el pago en Stripe
+            stripe_service = StripeService()
+            resultado = stripe_service.confirmar_payment_intent(data['payment_intent_id'])
+            
+            if resultado['estado'] == 'aprobado':
+                # Pago exitoso
+                transaccion.estado = 'EXITOSO'
+                transaccion.codigo_autorizacion = resultado['codigo_autorizacion']
+                transaccion.datos_pago.update(resultado.get('datos_adicionales', {}))
+                
+                # Obtener información de la tarjeta
+                tarjeta_info = stripe_service.obtener_metodos_pago(data['payment_intent_id'])
+                if tarjeta_info:
+                    transaccion.datos_pago['tarjeta'] = tarjeta_info.get('tarjeta', {})
+                
+                transaccion.save()
+                
+                # Actualizar cuota
+                cuota = transaccion.cuota
+                cuota.estado = 'PAGADA'
+                cuota.fecha_pago = timezone.now()
+                cuota.save()
+                
+                # Registrar en bitácora
+                Bitacora.objects.create(
+                    usuario=request.user,
+                    tipo_accion="PAGO_CUOTA_EXITOSO",
+                    ip=request.META.get('REMOTE_ADDR'),
+                    created_at=timezone.now()
+                )
+                
+                # Enviar comprobante
+                self._enviar_comprobante(cliente, transaccion)
+                
+                return Response({
+                    'estado': 'exitoso',
+                    'mensaje': 'Pago confirmado exitosamente',
+                    'codigo_autorizacion': transaccion.codigo_autorizacion,
+                    'referencia': resultado['referencia'],
+                    'fecha_pago': cuota.fecha_pago,
+                    'transaccion_id': str(transaccion.id),
+                    'tarjeta_info': tarjeta_info
+                })
+            else:
+                return Response({
+                    'estado': 'pendiente',
+                    'mensaje': resultado.get('mensaje', 'Pago aún no confirmado')
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except TransaccionPago.DoesNotExist:
+            return Response(
+                {'error': 'Transacción no encontrada'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Error interno del servidor: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'], url_path='historial')
+    def historial_pagos(self, request):
+        """Obtener historial de pagos del cliente"""
+        try:
+            cliente = Cliente.objects.get(user=request.user)
+            
+            transacciones = TransaccionPago.objects.filter(
+                cuota__plan__solicitud__cliente=cliente
+            ).select_related('cuota', 'cuota__plan', 'cuota__plan__solicitud').order_by('-fecha_transaccion')
+            
+            page = self.paginate_queryset(transacciones)
+            if page is not None:
+                serializer = TransaccionPagoSerializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = TransaccionPagoSerializer(transacciones, many=True)
+            return Response(serializer.data)
+            
+        except Cliente.DoesNotExist:
+            return Response(
+                {'error': 'Usuario no tiene perfil de cliente'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    def _enviar_comprobante(self, cliente, transaccion):
+        """Enviar comprobante de pago por email"""
+        # Implementación básica - expandir según necesidades
+        email_destino = transaccion.datos_pago.get('email_notificacion') or cliente.user.email
+        
+        # Aquí iría la lógica para enviar el email con el comprobante
+        # Por ahora solo registro en bitácora
+        Bitacora.objects.create(
+            usuario=cliente.user,
+            tipo_accion="COMPROBANTE_ENVIADO",
+            ip=None,
+            created_at=timezone.now()
+        )

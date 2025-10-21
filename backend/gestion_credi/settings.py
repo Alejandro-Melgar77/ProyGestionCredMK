@@ -28,7 +28,9 @@ if os.name == 'nt':  # Windows
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # Inicializar environ
-env = environ.Env()
+env = environ.Env(
+    DEBUG=(bool, False)
+)
 # Cargar el archivo .env (subimos un nivel porque settings.py está en backend/gestion_credi)
 environ.Env.read_env(os.path.join(BASE_DIR, '..', '.env'))
 
@@ -128,6 +130,9 @@ DATABASES = {
     }
 }
 
+STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='pk_test_...')
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='sk_test_...')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')  
 
 
 # Password validation

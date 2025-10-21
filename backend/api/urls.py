@@ -11,13 +11,13 @@ from .views import (
     DocumentoTipoViewSet, RequisitoProductoDocumentoViewSet, 
 
     # Plan de pagos (endpoints manuales SOLO para listar/generar)
-    PlanPagoGenerateView, PlanPagoDetailView,
+    PlanPagoGenerateView, PlanPagoDetailView, PagoViewSet,
 
     # Otros endpoints sueltos
     PublicRegisterView, SimuladorAPIView,
 
     # Nuevo CU IA
-    ValidacionInformacionViewSet
+    ValidacionInformacionViewSet,
 )
 
 router = DefaultRouter()
@@ -29,12 +29,13 @@ router.register(r'user-profiles', UserProfileViewSet)
 router.register(r'bitacora', BitacoraViewSet)
 router.register(r'clientes', ClienteViewSet)
 router.register(r'empleados', EmpleadoViewSet)
-router.register(r'solicitudes', SolicitudCreditoViewSet)  # <- aquí está la @action export
+router.register(r'solicitudes', SolicitudCreditoViewSet)
 router.register(r'productos', ProductoFinancieroViewSet, basename='productos')
 router.register(r'documentos', DocumentoAdjuntoViewSet, basename='documentos')
 router.register(r'documento-tipos', DocumentoTipoViewSet, basename='documento-tipos')
 router.register(r'requisitos', RequisitoProductoDocumentoViewSet, basename='requisitos')
 router.register(r'validacion', ValidacionInformacionViewSet, basename='validacion')
+router.register(r'pagos', PagoViewSet, basename='pagos')  # ✅ Esto genera automáticamente las rutas
 
 # ViewSet específico para Validación
 validacion_viewset = ValidacionInformacionViewSet.as_view({
@@ -68,6 +69,7 @@ urlpatterns = [
     path('validacion/resultado/<uuid:solicitud_id>/', validacion_viewset, name='obtener_resultado_validacion'),
     path('validacion/manual/', ValidacionInformacionViewSet.as_view({'post': 'validar_manual'}), name='validacion_manual'),
 
+    
     # —— Router (al final) ——  
     path('', include(router.urls)),
 ]
