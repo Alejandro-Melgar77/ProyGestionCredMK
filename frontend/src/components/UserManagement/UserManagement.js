@@ -51,7 +51,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       addDebug('Iniciando fetchUsers...');
-      const response = await axios.get('http://localhost:8000/api/users/');
+      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/users/`);
       addDebug(`fetchUsers exitoso, ${response.data.length} usuarios cargados`);
       setUsers(response.data);
     } catch (err) {
@@ -65,7 +65,7 @@ const UserManagement = () => {
   const fetchRoles = async () => {
     try {
       addDebug('Iniciando fetchRoles...');
-      const response = await axios.get('http://localhost:8000/api/roles/');
+      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/roles/`);
       addDebug(`fetchRoles exitoso, ${response.data.length} roles cargados`);
       setRoles(response.data);
     } catch (err) {
@@ -179,7 +179,7 @@ const UserManagement = () => {
         };
         
         addDebug(`Actualizando usuario ${editingUser.id}...`);
-        await axios.put(`http://localhost:8000/api/users/${editingUser.id}/`, updatePayload);
+        await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/users/${editingUser.id}/`, updatePayload);
         addDebug('Usuario actualizado exitosamente');
         
         // Actualizar datos adicionales según el rol
@@ -188,13 +188,13 @@ const UserManagement = () => {
           
           if (rolNombre === 'cliente' && editingUser.cliente_info) {
             addDebug('Actualizando datos de cliente...');
-            await axios.put(`http://localhost:8000/api/clientes/${editingUser.cliente_info.id}/`, {
+            await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/clientes/${editingUser.cliente_info.id}/`, {
               ...clienteData,
               telefono: clienteData.telefono
             });
           } else if (rolNombre !== 'administrador' && rolNombre !== 'cliente' && editingUser.empleado_info) {
             addDebug('Actualizando datos de empleado...');
-            await axios.put(`http://localhost:8000/api/empleados/${editingUser.empleado_info.id}/`, empleadoData);
+            await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/empleados/${editingUser.empleado_info.id}/`, empleadoData);
           }
         }
       } else {
@@ -203,7 +203,7 @@ const UserManagement = () => {
         const createPayload = prepareUserPayload();
         
         addDebug('Creando usuario...');
-        const userResponse = await axios.post('http://localhost:8000/api/users/', createPayload);
+        const userResponse = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/users/`, createPayload);
         const user = userResponse.data;
         addDebug(`Usuario creado exitosamente - ID: ${user.id}`);
 
@@ -217,7 +217,7 @@ const UserManagement = () => {
             
             // Verificar que el usuario se creó correctamente
             try {
-              const userCheck = await axios.get(`http://localhost:8000/api/users/${user.id}/`);
+              const userCheck = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/users/${user.id}/`);
               addDebug(`Usuario verificado: ${userCheck.data.username}`);
             } catch (checkError) {
               addDebug(`ERROR verificando usuario: ${checkError.message}`);
@@ -227,7 +227,7 @@ const UserManagement = () => {
             const empleadoPayload = prepareEmpleadoPayload(user.id);
             
             addDebug('Enviando datos de empleado al servidor...');
-            const empleadoResponse = await axios.post('http://localhost:8000/api/empleados/', empleadoPayload);
+            const empleadoResponse = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/empleados/`, empleadoPayload);
             addDebug(`Empleado creado exitosamente - ID: ${empleadoResponse.data.id}`);
           } else {
             addDebug(`No se requiere creación adicional para rol: ${rolNombre}`);
@@ -358,7 +358,7 @@ const UserManagement = () => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
       try {
         addDebug(`Eliminando usuario ID: ${userId}`);
-        await axios.delete(`http://localhost:8000/api/users/${userId}/`);
+        await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/api/users/${userId}/`);
         fetchUsers();
       } catch (err) {
         setError('Error al eliminar el usuario');

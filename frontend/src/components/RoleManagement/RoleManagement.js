@@ -31,7 +31,7 @@ const RoleManagement = () => {
 
   const fetchRoles = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/roles/');
+      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/roles/`);
       setRoles(response.data);
     } catch (error) {
       setError('Error al cargar los roles');
@@ -41,7 +41,7 @@ const RoleManagement = () => {
 
   const fetchPermissions = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/permisos/');
+      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/permisos/`);
       setPermissions(response.data);
     } catch (error) {
       setError('Error al cargar los permisos');
@@ -51,7 +51,7 @@ const RoleManagement = () => {
 
   const fetchRolePermissions = async (roleId) => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/roles/${roleId}/permisos/`);
+      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/roles/${roleId}/permisos/`);
       setRolePermissions(response.data);
     } catch (error) {
       setError('Error al cargar los permisos del rol');
@@ -79,7 +79,7 @@ const RoleManagement = () => {
     setError('');
 
     try {
-      await axios.post('http://localhost:8000/api/roles/', roleForm);
+      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/roles/`, roleForm);
       setRoleForm({ nombre: '', descripcion: '' });
       fetchRoles();
     } catch (error) {
@@ -96,7 +96,7 @@ const RoleManagement = () => {
     setError('');
 
     try {
-      await axios.post('http://localhost:8000/api/permisos/', permissionForm);
+      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/permisos/`, permissionForm);
       setPermissionForm({ nombre: '', descripcion: '' });
       fetchPermissions();
     } catch (error) {
@@ -109,7 +109,7 @@ const RoleManagement = () => {
 
   const handleAddPermissionToRole = async (permissionId) => {
     try {
-      await axios.post(`http://localhost:8000/api/roles/${selectedRole.id}/permisos/`, {
+      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/roles/${selectedRole.id}/permisos/`, {
         permiso_id: permissionId
       });
       fetchRolePermissions(selectedRole.id);
@@ -121,7 +121,7 @@ const RoleManagement = () => {
 
   const handleRemovePermissionFromRole = async (permissionId) => {
     try {
-      await axios.delete(`http://localhost:8000/api/roles/${selectedRole.id}/permisos/${permissionId}/`);
+      await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/api/roles/${selectedRole.id}/permisos/${permissionId}/`);
       fetchRolePermissions(selectedRole.id);
     } catch (error) {
       setError('Error al eliminar el permiso del rol');
@@ -132,7 +132,7 @@ const RoleManagement = () => {
   const handleDeleteRole = async (roleId) => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este rol?')) {
       try {
-        await axios.delete(`http://localhost:8000/api/roles/${roleId}/`);
+        await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/api/roles/${roleId}/`);
         setSelectedRole(null);
         fetchRoles();
       } catch (error) {
@@ -145,7 +145,7 @@ const RoleManagement = () => {
   const handleDeletePermission = async (permissionId) => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este permiso?')) {
       try {
-        await axios.delete(`http://localhost:8000/api/permisos/${permissionId}/`);
+        await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/api/permisos/${permissionId}/`);
         fetchPermissions();
       } catch (error) {
         setError('Error al eliminar el permiso');
