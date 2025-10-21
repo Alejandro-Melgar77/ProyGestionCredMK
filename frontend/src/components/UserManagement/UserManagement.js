@@ -33,24 +33,6 @@ const UserManagement = () => {
     puede_aprobar_creditos: false,
     limite_aprobacion: "",
   });
-  const [clienteData, setClienteData] = useState({
-    tipo_documento: 'CI',
-    numero_documento: '',
-    telefono: '',
-    direccion: '',
-    fecha_nacimiento: '',
-    ocupacion: '',
-    ingresos_mensuales: ''
-  });
-  const [empleadoData, setEmpleadoData] = useState({
-    codigo_empleado: '',
-    departamento: 'ATENCION',
-    fecha_contratacion: '',
-    salario: '',
-    es_supervisor: false,
-    puede_aprobar_creditos: false,
-    limite_aprobacion: ''
-  });
   const [editingUser, setEditingUser] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
