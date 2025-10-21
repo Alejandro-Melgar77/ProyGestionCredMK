@@ -5,7 +5,7 @@ from rest_framework.validators import UniqueValidator
 
 # === MODELOS ===
 from .models import (
-    Rol, Permiso, RolPermiso, UserProfile, Bitacora,
+    Rol, Permiso, RolPermiso, UserProfile,
     Cliente, Empleado, SolicitudCredito, PlanPago, PlanCuota,
     ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago
 )
@@ -264,13 +264,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
                   'telefono', 'created_at', 'updated_at', 'is_deleted']
 
 
-class BitacoraSerializer(serializers.ModelSerializer):
-    usuario_nombre = serializers.CharField(source='usuario.username', read_only=True)
-
-    class Meta:
-        model = Bitacora
-        fields = ['id', 'usuario', 'usuario_nombre',
-                  'tipo_accion', 'ip', 'created_at', 'updated_at', 'is_deleted']
 
 
 # =========================================================

@@ -28,7 +28,7 @@ from .services.simulador import simular_plan
 from .services.validadores import validar_vigencia
 
 from .models import (
-    Rol, Permiso, RolPermiso, UserProfile, Bitacora,
+    Rol, Permiso, RolPermiso, UserProfile,
     Cliente, Empleado, SolicitudCredito,
     PlanPago, ProductoFinanciero,
     DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, PlanCuota,
@@ -41,7 +41,7 @@ from .serializers import (
     UserDetailSerializer, UserProfileSerializer, PublicRegisterSerializer,
 
     # Roles / Permisos / Bitácora
-    RolSerializer, PermisoSerializer, RolPermisoSerializer, BitacoraSerializer,
+    RolSerializer, PermisoSerializer, RolPermisoSerializer,
 
     # Personas
     ClienteSerializer, EmpleadoSerializer,
@@ -59,6 +59,12 @@ from .serializers import (
     ProcesarValidacionSerializer, ValidacionDocumentoSerializer, ResultadoValidacionIASerializer, DocumentoValidacionSerializer
 )
 
+#Bitacora;
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers_auth import CustomTokenObtainPairSerializer 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework import status
+
 # =========================================================
 #                    PERMISOS DE NEGOCIO
 # =========================================================
@@ -71,7 +77,24 @@ class IsOfficialOrAdmin(permissions.BasePermission):
             request.user and request.user.is_authenticated and
             (request.user.is_superuser or nombre in ('OFICIAL', 'ADMIN'))
         )
+    
+# =========================================================
+#                    Registrar Inicio de Sesion
+# =========================================================
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    Vista personalizada de login (usa serializer que registra el acceso en Bitácora).
+    """
 
+    serializer_class = CustomTokenObtainPairSerializer
+
+    def get_serializer_context(self):
+        """
+        Inyecta el request actual al serializer para poder registrar el acceso correctamente.
+        """
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 # =========================================================
 #                          USUARIOS
 # =========================================================
@@ -171,7 +194,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_client_ip(self, request):
         xff = request.META.get('HTTP_X_FORWARDED_FOR')
         return xff.split(',')[0] if xff else request.META.get('REMOTE_ADDR')
-
+    
 # =========================================================
 #                    CLIENTE / EMPLEADO
 # =========================================================
@@ -239,33 +262,6 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        with transaction.atomic():
-            serializer.save()
-            Bitacora.objects.create(
-                usuario=self.request.user,
-                tipo_accion="CREAR_PERFIL_USUARIO",
-                ip=self.request.META.get('REMOTE_ADDR')
-            )
-
-    def perform_update(self, serializer):
-        with transaction.atomic():
-            serializer.save()
-            Bitacora.objects.create(
-                usuario=self.request.user,
-                tipo_accion="ACTUALIZAR_PERFIL_USUARIO",
-                ip=self.request.META.get('REMOTE_ADDR')
-            )
-
-class BitacoraViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Bitacora.objects.all()
-    serializer_class = BitacoraSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        if self.request.user.is_superuser:
-            return Bitacora.objects.all()
-        return Bitacora.objects.filter(usuario=self.request.user)
 
 # =========================================================
 #                 SOLICITUDES (CU12/13/14)

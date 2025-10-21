@@ -5,19 +5,22 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     # ViewSets principales (router)
     UserViewSet, RolViewSet, PermisoViewSet, RolPermisoViewSet,
-    UserProfileViewSet, BitacoraViewSet,
+    UserProfileViewSet,
     ClienteViewSet, EmpleadoViewSet, SolicitudCreditoViewSet,
     ProductoFinancieroViewSet, DocumentoAdjuntoViewSet,
-    DocumentoTipoViewSet, RequisitoProductoDocumentoViewSet, 
+    DocumentoTipoViewSet, RequisitoProductoDocumentoViewSet,  
 
     # Plan de pagos (endpoints manuales SOLO para listar/generar)
     PlanPagoGenerateView, PlanPagoDetailView, PagoViewSet,
 
     # Otros endpoints sueltos
-    PublicRegisterView, SimuladorAPIView,
+    PublicRegisterView, SimuladorAPIView, 
 
     # Nuevo CU IA
     ValidacionInformacionViewSet,
+
+    #Registro inicio de sesion
+    CustomTokenObtainPairView,
 )
 
 router = DefaultRouter()
@@ -26,7 +29,6 @@ router.register(r'roles', RolViewSet)
 router.register(r'permisos', PermisoViewSet)
 router.register(r'rol-permisos', RolPermisoViewSet)
 router.register(r'user-profiles', UserProfileViewSet)
-router.register(r'bitacora', BitacoraViewSet)
 router.register(r'clientes', ClienteViewSet)
 router.register(r'empleados', EmpleadoViewSet)
 router.register(r'solicitudes', SolicitudCreditoViewSet)
@@ -44,6 +46,8 @@ validacion_viewset = ValidacionInformacionViewSet.as_view({
 })
 
 urlpatterns = [
+    #Para inicio de sesion bitacora
+    path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     # —— PLAN DE PAGO (detalle + generar) ——  
     path(
         'solicitudes/<uuid:solicitud_id>/plan-pagos/',

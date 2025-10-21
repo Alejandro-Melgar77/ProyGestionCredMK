@@ -23,7 +23,7 @@ const Logout = () => {
 
     try {
       // Opcional: Notificar al backend para invalidar el token
-      await axios.post('http://localhost:8000/api/auth/logout/', {}, {
+      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/auth/logout/`, {}, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('access_token')}`
         }
