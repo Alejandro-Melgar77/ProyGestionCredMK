@@ -1,59 +1,70 @@
 // src/App.js
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
-import api, { setTokenPair, clearTokenPair } from './config/axios';
+import api from "./config/axios";
 
 // Layouts
-import Layout from './components/Layout/Layout';
-import AuthLayout from './components/Auth/AuthLayout';
-import RequireAuth from './components/Auth/RequireAuth';
+import Layout from "./components/Layout/Layout";
+import AuthLayout from "./components/Auth/AuthLayout";
+import RequireAuth from "./components/Auth/RequireAuth";
 
 // Auth
-import Login from './components/Login/Login';
-import PasswordReset from './components/PasswordReset/PasswordReset';
+import Login from "./components/Login/Login";
+import PasswordReset from "./components/PasswordReset/PasswordReset";
 
 // Gestión
-import Dashboard from './components/Dashboard/Dashboard';
-import UserManagement from './components/UserManagement/UserManagement';
-import RoleManagement from './components/RoleManagement/RoleManagement';
-import ClientManagement from './components/ClientManagement/ClientManagement';
-import EmployeeManagement from './components/EmployeeManagement/EmployeeManagement';
+import Dashboard from "./components/Dashboard/Dashboard";
+import UserManagement from "./components/UserManagement/UserManagement";
+import RoleManagement from "./components/RoleManagement/RoleManagement";
+import ClientManagement from "./components/ClientManagement/ClientManagement";
+import EmployeeManagement from "./components/EmployeeManagement/EmployeeManagement";
 
 // Solicitudes
-import SolicitudesList from './pages/solicitudes/SolicitudesList';
-import SolicitudCreate from './pages/solicitudes/SolicitudCreate';
-import SolicitudDetail from './pages/solicitudes/SolicitudDetail';
-import SolicitudChecklist from './pages/solicitudes/SolicitudChecklist';
-import PlanView from './pages/solicitudes/PlanView';
-import Simulador from './pages/solicitudes/Simulador';
-import InformationValidation from './components/InformationValidation/InformationValidation';
+import SolicitudesList from "./pages/solicitudes/SolicitudesList";
+import SolicitudCreate from "./pages/solicitudes/SolicitudCreate";
+import SolicitudDetail from "./pages/solicitudes/SolicitudDetail";
+import SolicitudChecklist from "./pages/solicitudes/SolicitudChecklist";
+import PlanView from "./pages/solicitudes/PlanView";
+import Simulador from "./pages/solicitudes/Simulador";
+import InformationValidation from "./components/InformationValidation/InformationValidation";
 
 // Productos
-import RequisitosEditor from './pages/productos/RequisitosEditor';
+import RequisitosEditor from "./pages/productos/RequisitosEditor";
 
-import './App.css';
+// Bitácora
+import BitacoraPage from "./pages/bitacora/BitacoraPage";
+
+import "./App.css";
 
 function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Verifica sesión al montar
+  // ✅ Verifica sesión al montar
   useEffect(() => {
     const verify = async () => {
       try {
         const token =
-          localStorage.getItem('access_token') ||
-          localStorage.getItem('access');
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("access");
         if (!token) {
           setIsAuthenticated(false);
           return;
         }
-        // Siempre consulta tu endpoint de perfil
-        await api.get('users/me/');
+
+        // Consulta al endpoint de perfil
+        await api.get("users/me/");
         setIsAuthenticated(true);
       } catch {
-        clearTokenPair();
+        // Limpia tokens si expiran o son inválidos
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
         setIsAuthenticated(false);
       } finally {
         setAuthLoading(false);
@@ -62,8 +73,12 @@ function App() {
     verify();
   }, []);
 
+  // ✅ Maneja login exitoso
   const handleLoginSuccess = (tokens) => {
-    if (tokens?.access || tokens?.refresh) setTokenPair(tokens);
+    if (tokens?.access || tokens?.refresh) {
+      localStorage.setItem("access_token", tokens.access);
+      localStorage.setItem("refresh_token", tokens.refresh);
+    }
     setIsAuthenticated(true);
   };
 
@@ -75,7 +90,9 @@ function App() {
           path="/"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><Dashboard /></Layout>
+              <Layout>
+                <Dashboard />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -84,25 +101,25 @@ function App() {
         <Route
           path="/login"
           element={
-            isAuthenticated
-              ? <Navigate to="/" replace />
-              : (
-                <AuthLayout>
-                  <Login onLoginSuccess={handleLoginSuccess} />
-                </AuthLayout>
-              )
+            isAuthenticated ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthLayout>
+                <Login onLoginSuccess={handleLoginSuccess} />
+              </AuthLayout>
+            )
           }
         />
         <Route
           path="/password-reset"
           element={
-            isAuthenticated
-              ? <Navigate to="/" replace />
-              : (
-                <AuthLayout>
-                  <PasswordReset />
-                </AuthLayout>
-              )
+            isAuthenticated ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthLayout>
+                <PasswordReset />
+              </AuthLayout>
+            )
           }
         />
 
@@ -111,7 +128,9 @@ function App() {
           path="/users"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><UserManagement /></Layout>
+              <Layout>
+                <UserManagement />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -119,7 +138,9 @@ function App() {
           path="/roles"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><RoleManagement /></Layout>
+              <Layout>
+                <RoleManagement />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -127,7 +148,9 @@ function App() {
           path="/clientes"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><ClientManagement /></Layout>
+              <Layout>
+                <ClientManagement />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -135,7 +158,9 @@ function App() {
           path="/empleados"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><EmployeeManagement /></Layout>
+              <Layout>
+                <EmployeeManagement />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -145,7 +170,9 @@ function App() {
           path="/simulador"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><Simulador /></Layout>
+              <Layout>
+                <Simulador />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -155,7 +182,9 @@ function App() {
           path="/solicitudes"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><SolicitudesList /></Layout>
+              <Layout>
+                <SolicitudesList />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -163,7 +192,9 @@ function App() {
           path="/solicitudes/nueva"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><SolicitudCreate /></Layout>
+              <Layout>
+                <SolicitudCreate />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -171,7 +202,9 @@ function App() {
           path="/solicitudes/:id"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><SolicitudDetail /></Layout>
+              <Layout>
+                <SolicitudDetail />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -179,7 +212,9 @@ function App() {
           path="/solicitudes/:id/checklist"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><SolicitudChecklist /></Layout>
+              <Layout>
+                <SolicitudChecklist />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -187,7 +222,9 @@ function App() {
           path="/solicitudes/:id/plan"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><PlanView /></Layout>
+              <Layout>
+                <PlanView />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -197,7 +234,21 @@ function App() {
           path="/productos/requisitos"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><RequisitosEditor /></Layout>
+              <Layout>
+                <RequisitosEditor />
+              </Layout>
+            </RequireAuth>
+          }
+        />
+
+        {/* Bitácora (protegida) */}
+        <Route
+          path="/bitacora"
+          element={
+            <RequireAuth authed={isAuthenticated} loading={authLoading}>
+              <Layout>
+                <BitacoraPage />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -205,7 +256,9 @@ function App() {
           path="/validacion/:solicitudId"
           element={
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
-              <Layout><InformationValidation /></Layout>
+              <Layout>
+                <InformationValidation />
+              </Layout>
             </RequireAuth>
           }
         />
@@ -213,9 +266,11 @@ function App() {
         <Route
           path="*"
           element={
-            isAuthenticated
-              ? <Navigate to="/" replace />
-              : <Navigate to="/login" replace />
+            isAuthenticated ? (
+              <Navigate to="/" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
       </Routes>

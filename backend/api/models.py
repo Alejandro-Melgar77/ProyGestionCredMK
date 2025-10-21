@@ -53,18 +53,6 @@ class UserProfile(models.Model):
         return f"{self.user.username} - {self.rol.nombre if self.rol else 'Sin rol'}"
 
 
-class Bitacora(models.Model):
-    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
-    tipo_accion = models.CharField(max_length=50)
-    ip = models.GenericIPAddressField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_deleted = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"{self.usuario.username} - {self.tipo_accion} - {self.created_at}"
-
-
 # Nuevos modelos sugeridos por la IA
 class Cliente(models.Model):
     TIPOS_DOCUMENTO = [

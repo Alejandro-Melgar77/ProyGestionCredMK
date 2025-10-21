@@ -1,19 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import axios from '../../config/axios';
-import './UserManagement.css';
+import React, { useState, useEffect } from "react";
+import axios from "../../config/axios";
+import "./UserManagement.css";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    password2: '',
-    first_name: '',
-    last_name: '',
+    username: "",
+    email: "",
+    password: "",
+    password2: "",
+    first_name: "",
+    last_name: "",
     is_active: true,
-    rol_id: ''
+    rol_id: "",
+  });
+  const [clienteData, setClienteData] = useState({
+    tipo_documento: "CI",
+    numero_documento: "",
+    telefono: "",
+    direccion: "",
+    fecha_nacimiento: "",
+    ocupacion: "",
+    ingresos_mensuales: "",
+  });
+  const [empleadoData, setEmpleadoData] = useState({
+    codigo_empleado: "",
+    departamento: "ATENCION",
+    fecha_contratacion: "",
+    salario: "",
+    es_supervisor: false,
+    puede_aprobar_creditos: false,
+    limite_aprobacion: "",
   });
   const [clienteData, setClienteData] = useState({
     tipo_documento: 'CI',
@@ -34,9 +52,9 @@ const UserManagement = () => {
     limite_aprobacion: ''
   });
   const [editingUser, setEditingUser] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState('');
+  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -45,10 +63,12 @@ const UserManagement = () => {
 
   const addDebug = (message) => {
     console.log(`🔍 DEBUG: ${message}`);
-    setDebugInfo(prev => prev + `\n${new Date().toLocaleTimeString()}: ${message}`);
+    setDebugInfo(
+      (prev) => prev + `\n${new Date().toLocaleTimeString()}: ${message}`
+    );
   };
 
-  const fetchUsers = async () => {
+ const fetchUsers = async () => {
     try {
       addDebug('Iniciando fetchUsers...');
       const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/users/`);
@@ -75,14 +95,14 @@ const UserManagement = () => {
   };
 
   const getSelectedRol = () => {
-    return roles.find(rol => rol.id === parseInt(formData.rol_id));
+    return roles.find((rol) => rol.id === parseInt(formData.rol_id));
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     });
   };
 
@@ -90,7 +110,7 @@ const UserManagement = () => {
     const { name, value, type, checked } = e.target;
     setClienteData({
       ...clienteData,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     });
   };
 
@@ -98,18 +118,18 @@ const UserManagement = () => {
     const { name, value, type, checked } = e.target;
     setEmpleadoData({
       ...empleadoData,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     });
   };
 
   const generateEmployeeCode = () => {
-    return 'EMP' + Math.random().toString(36).substr(2, 7).toUpperCase();
+    return "EMP" + Math.random().toString(36).substr(2, 7).toUpperCase();
   };
 
   const prepareUserPayload = () => {
     const selectedRol = getSelectedRol();
-    const rolNombre = selectedRol ? selectedRol.nombre.toLowerCase() : '';
-    
+    const rolNombre = selectedRol ? selectedRol.nombre.toLowerCase() : "";
+
     const payload = {
       username: formData.username,
       email: formData.email,
@@ -118,11 +138,11 @@ const UserManagement = () => {
       first_name: formData.first_name,
       last_name: formData.last_name,
       is_active: formData.is_active,
-      rol_id: parseInt(formData.rol_id)
+      rol_id: parseInt(formData.rol_id),
     };
 
     // Solo agregar datos de cliente si el rol es cliente
-    if (rolNombre === 'cliente') {
+    if (rolNombre === "cliente") {
       Object.assign(payload, {
         telefono: clienteData.telefono,
         tipo_documento: clienteData.tipo_documento,
@@ -130,7 +150,9 @@ const UserManagement = () => {
         direccion: clienteData.direccion,
         fecha_nacimiento: clienteData.fecha_nacimiento,
         ocupacion: clienteData.ocupacion,
-        ingresos_mensuales: clienteData.ingresos_mensuales ? parseFloat(clienteData.ingresos_mensuales) : null
+        ingresos_mensuales: clienteData.ingresos_mensuales
+          ? parseFloat(clienteData.ingresos_mensuales)
+          : null,
       });
     }
 
@@ -160,14 +182,21 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
     setError('');
     setDebugInfo('Iniciando proceso de creación...\n');
 
     try {
       const selectedRol = getSelectedRol();
-      addDebug(`Rol seleccionado: ${selectedRol?.nombre || 'Ninguno'}`);
-      
+      addDebug(`Rol seleccionado: ${selectedRol?.nombre || "Ninguno"}`);
+
       if (editingUser) {
+        const payload = { ...formData };
+        if (!payload.password) delete payload.password;
+        await axios.put(
+          `http://localhost:8000/api/users/${editingUser.id}/`,
+          payload
+        );
         // Modo edición
         addDebug('Modo edición activado');
         const updatePayload = {
@@ -268,6 +297,41 @@ const UserManagement = () => {
       } else if (err.request) {
         setError('No se pudo conectar con el servidor');
       } else {
+        await axios.post("http://localhost:8000/api/users/", {
+          ...formData,
+          rol_id: formData.rol_id,
+          password2: formData.password2,
+        });
+      }
+
+      setFormData({
+        username: "",
+        email: "",
+        password: "",
+        password2: "",
+        first_name: "",
+        last_name: "",
+        is_active: true,
+        rol_id: "",
+      });
+      setEditingUser(null);
+      fetchUsers();
+    } catch (err) {
+      if (err.response?.data) {
+        const messages = Object.entries(err.response.data)
+          .map(([field, msgs]) => `${field}: ${msgs.join(" ")}`)
+          .join(" | ");
+        setError(messages);
+      } else {
+        setError("Error al guardar el usuario");
+      }
+      console.error("Save user error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEdit = (user) => {
         setError('Error inesperado');
       }
       
@@ -314,15 +378,17 @@ const UserManagement = () => {
     setFormData({
       username: user.username,
       email: user.email,
-      password: '',
-      password2: '',
+      password: "",
+      password2: "",
       first_name: user.first_name,
       last_name: user.last_name,
       is_active: user.is_active,
+      rol_id: user.rol_id || "",
       rol_id: user.userprofile?.rol_id || ''
     });
-    
+
     setEditingUser(user);
+    setError("");
     setError('');
 
     // Cargar datos adicionales según el rol
@@ -355,26 +421,40 @@ const UserManagement = () => {
   };
 
   const handleDelete = async (userId) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
+    if (window.confirm("¿Estás seguro de que deseas eliminar este usuario?")) {
       try {
         addDebug(`Eliminando usuario ID: ${userId}`);
-        await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/api/users/${userId}/`);
+        await axios.delete(
+          `${process.env.REACT_APP_API_BASE_URL}/api/users/${userId}/`
+        );
         fetchUsers();
       } catch (err) {
-        setError('Error al eliminar el usuario');
-        console.error('Delete user error:', err);
+        setError("Error al eliminar el usuario");
+        console.error("Delete user error:", err);
       }
     }
   };
 
   const cancelEdit = () => {
+    setFormData({
+      username: "",
+      email: "",
+      password: "",
+      password2: "",
+      first_name: "",
+      last_name: "",
+      is_active: true,
+      rol_id: "",
+    });
+    setEditingUser(null);
+    setError("");
     addDebug('Editación cancelada');
     resetForms();
     setError('');
   };
 
   const selectedRol = getSelectedRol();
-  const rolNombre = selectedRol ? selectedRol.nombre.toLowerCase() : '';
+  const rolNombre = selectedRol ? selectedRol.nombre.toLowerCase() : "";
 
   return (
     <div className="user-management-container">
@@ -383,29 +463,38 @@ const UserManagement = () => {
       {error && <div className="error-message">{error}</div>}
 
       {/* Panel de Debug (puedes ocultarlo en producción) */}
-      <details style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}>
+      <details
+        style={{
+          marginBottom: "20px",
+          padding: "10px",
+          border: "1px solid #ccc",
+          borderRadius: "5px",
+        }}
+      >
         <summary>Información de Debug</summary>
-        <pre style={{ 
-          background: '#f5f5f5', 
-          padding: '10px', 
-          borderRadius: '5px', 
-          fontSize: '12px',
-          maxHeight: '200px',
-          overflow: 'auto',
-          whiteSpace: 'pre-wrap'
-        }}>
-          {debugInfo || 'No hay información de debug aún...'}
+        <pre
+          style={{
+            background: "#f5f5f5",
+            padding: "10px",
+            borderRadius: "5px",
+            fontSize: "12px",
+            maxHeight: "200px",
+            overflow: "auto",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {debugInfo || "No hay información de debug aún..."}
         </pre>
-        <button 
-          onClick={() => setDebugInfo('')} 
-          style={{ marginTop: '10px', padding: '5px 10px' }}
+        <button
+          onClick={() => setDebugInfo("")}
+          style={{ marginTop: "10px", padding: "5px 10px" }}
         >
           Limpiar Debug
         </button>
       </details>
 
       <form className="user-form" onSubmit={handleSubmit}>
-        <h3>{editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</h3>
+        <h3>{editingUser ? "Editar Usuario" : "Crear Nuevo Usuario"}</h3>
 
         <div className="form-row">
           <div className="form-group">
@@ -468,13 +557,15 @@ const UserManagement = () => {
           >
             <option value="">-- Seleccione un rol --</option>
             {roles.map((rol) => (
-              <option key={rol.id} value={rol.id}>{rol.nombre}</option>
+              <option key={rol.id} value={rol.id}>
+                {rol.nombre}
+              </option>
             ))}
           </select>
         </div>
 
         {/* Campos para Cliente */}
-        {rolNombre === 'cliente' && (
+        {rolNombre === "cliente" && (
           <div className="additional-fields">
             <h4>Datos del Cliente</h4>
             <div className="form-row">
@@ -567,113 +658,119 @@ const UserManagement = () => {
         )}
 
         {/* Campos para Empleado (cuando no es cliente ni administrador) */}
-        {selectedRol && rolNombre !== 'cliente' && rolNombre !== 'administrador' && (
-          <div className="additional-fields">
-            <h4>Datos del Empleado</h4>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="codigo_empleado">Código de Empleado:</label>
-                <input
-                  type="text"
-                  id="codigo_empleado"
-                  name="codigo_empleado"
-                  value={empleadoData.codigo_empleado}
-                  onChange={handleEmpleadoChange}
-                  placeholder="Se generará automáticamente si se deja vacío"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="departamento">Departamento:</label>
-                <select
-                  id="departamento"
-                  name="departamento"
-                  value={empleadoData.departamento}
-                  onChange={handleEmpleadoChange}
-                  required
-                >
-                  <option value="CREDITO">Crédito</option>
-                  <option value="ADMIN">Administración</option>
-                  <option value="TESORERIA">Tesorería</option>
-                  <option value="ATENCION">Atención al Cliente</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="fecha_contratacion">Fecha de Contratación:</label>
-                <input
-                  type="date"
-                  id="fecha_contratacion"
-                  name="fecha_contratacion"
-                  value={empleadoData.fecha_contratacion}
-                  onChange={handleEmpleadoChange}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="salario">Salario:</label>
-                <input
-                  type="number"
-                  id="salario"
-                  name="salario"
-                  value={empleadoData.salario}
-                  onChange={handleEmpleadoChange}
-                  step="0.01"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="limite_aprobacion">Límite de Aprobación:</label>
-                <input
-                  type="number"
-                  id="limite_aprobacion"
-                  name="limite_aprobacion"
-                  value={empleadoData.limite_aprobacion}
-                  onChange={handleEmpleadoChange}
-                  step="0.01"
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group checkbox-group">
-                <label htmlFor="es_supervisor">
+        {selectedRol &&
+          rolNombre !== "cliente" &&
+          rolNombre !== "administrador" && (
+            <div className="additional-fields">
+              <h4>Datos del Empleado</h4>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="codigo_empleado">Código de Empleado:</label>
                   <input
-                    type="checkbox"
-                    id="es_supervisor"
-                    name="es_supervisor"
-                    checked={empleadoData.es_supervisor}
+                    type="text"
+                    id="codigo_empleado"
+                    name="codigo_empleado"
+                    value={empleadoData.codigo_empleado}
                     onChange={handleEmpleadoChange}
+                    placeholder="Se generará automáticamente si se deja vacío"
                   />
-                  Es Supervisor
-                </label>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="departamento">Departamento:</label>
+                  <select
+                    id="departamento"
+                    name="departamento"
+                    value={empleadoData.departamento}
+                    onChange={handleEmpleadoChange}
+                    required
+                  >
+                    <option value="CREDITO">Crédito</option>
+                    <option value="ADMIN">Administración</option>
+                    <option value="TESORERIA">Tesorería</option>
+                    <option value="ATENCION">Atención al Cliente</option>
+                  </select>
+                </div>
               </div>
-              <div className="form-group checkbox-group">
-                <label htmlFor="puede_aprobar_creditos">
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="fecha_contratacion">
+                    Fecha de Contratación:
+                  </label>
                   <input
-                    type="checkbox"
-                    id="puede_aprobar_creditos"
-                    name="puede_aprobar_creditos"
-                    checked={empleadoData.puede_aprobar_creditos}
+                    type="date"
+                    id="fecha_contratacion"
+                    name="fecha_contratacion"
+                    value={empleadoData.fecha_contratacion}
                     onChange={handleEmpleadoChange}
+                    required
                   />
-                  Puede Aprobar Créditos
-                </label>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="salario">Salario:</label>
+                  <input
+                    type="number"
+                    id="salario"
+                    name="salario"
+                    value={empleadoData.salario}
+                    onChange={handleEmpleadoChange}
+                    step="0.01"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="limite_aprobacion">
+                    Límite de Aprobación:
+                  </label>
+                  <input
+                    type="number"
+                    id="limite_aprobacion"
+                    name="limite_aprobacion"
+                    value={empleadoData.limite_aprobacion}
+                    onChange={handleEmpleadoChange}
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group checkbox-group">
+                  <label htmlFor="es_supervisor">
+                    <input
+                      type="checkbox"
+                      id="es_supervisor"
+                      name="es_supervisor"
+                      checked={empleadoData.es_supervisor}
+                      onChange={handleEmpleadoChange}
+                    />
+                    Es Supervisor
+                  </label>
+                </div>
+                <div className="form-group checkbox-group">
+                  <label htmlFor="puede_aprobar_creditos">
+                    <input
+                      type="checkbox"
+                      id="puede_aprobar_creditos"
+                      name="puede_aprobar_creditos"
+                      checked={empleadoData.puede_aprobar_creditos}
+                      onChange={handleEmpleadoChange}
+                    />
+                    Puede Aprobar Créditos
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="password">
               {editingUser
-                ? 'Nueva Contraseña (dejar en blanco para no cambiar)'
-                : 'Contraseña:'}
+                ? "Nueva Contraseña (dejar en blanco para no cambiar)"
+                : "Contraseña:"}
             </label>
             <input
               type="password"
@@ -711,11 +808,15 @@ const UserManagement = () => {
 
         <div className="form-actions">
           <button type="submit" className="save-button" disabled={isLoading}>
-            {isLoading ? 'Guardando...' : editingUser ? 'Actualizar' : 'Crear'}
+            {isLoading ? "Guardando..." : editingUser ? "Actualizar" : "Crear"}
           </button>
 
           {editingUser && (
-            <button type="button" className="cancel-button" onClick={cancelEdit}>
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={cancelEdit}
+            >
               Cancelar
             </button>
           )}
@@ -744,19 +845,33 @@ const UserManagement = () => {
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td>{user.username}</td>
-                    <td>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || '-'}</td>
-                    <td>{user.email}</td>
-                    <td>{user.rol_nombre || '-'}</td>
                     <td>
-                      <span className={`status ${user.is_active ? 'active' : 'inactive'}`}>
-                        {user.is_active ? 'Activo' : 'Inactivo'}
+                      {`${user.first_name || ""} ${
+                        user.last_name || ""
+                      }`.trim() || "-"}
+                    </td>
+                    <td>{user.email}</td>
+                    <td>{user.rol_nombre || "-"}</td>
+                    <td>
+                      <span
+                        className={`status ${
+                          user.is_active ? "active" : "inactive"
+                        }`}
+                      >
+                        {user.is_active ? "Activo" : "Inactivo"}
                       </span>
                     </td>
                     <td>
-                      <button className="edit-button" onClick={() => handleEdit(user)}>
+                      <button
+                        className="edit-button"
+                        onClick={() => handleEdit(user)}
+                      >
                         Editar
                       </button>
-                      <button className="delete-button" onClick={() => handleDelete(user.id)}>
+                      <button
+                        className="delete-button"
+                        onClick={() => handleDelete(user.id)}
+                      >
                         Eliminar
                       </button>
                     </td>

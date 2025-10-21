@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import axios from '../../config/axios';
-import './Navigation.css';
+import React, { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "../../config/axios";
+import "./Navigation.css";
 
 const Navigation = () => {
   const location = useLocation();
@@ -10,18 +10,21 @@ const Navigation = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/permisos/auth/logout/`, {}, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`
+      await axios.post(
+        `${process.env.REACT_APP_API_BASE_URL}/api/permisos/auth/logout/`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
         }
-      });
+      );
     } catch (error) {
-      console.error('Logout error:', error);
+      console.log("Error al cerrar sesión:", error);
     } finally {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      delete axios.defaults.headers.common['Authorization'];
-      navigate('/login');
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      window.location.href = "/login";
     }
   };
 
@@ -31,43 +34,47 @@ const Navigation = () => {
         <h2 className="nav-logo">MiApp</h2>
 
         {/* Botón hamburguesa */}
-        <button 
-          className={`menu-toggle ${menuOpen ? 'open' : ''}`} 
+        <button
+          className={`menu-toggle ${menuOpen ? "open" : ""}`}
           onClick={() => setMenuOpen(!menuOpen)}
         >
           ☰
         </button>
       </div>
 
-      <ul className={`nav-links ${menuOpen ? 'show' : ''}`}>
+      <ul className={`nav-links ${menuOpen ? "show" : ""}`}>
         <li>
-          <Link 
-            to="/dashboard" 
-            className={location.pathname === '/dashboard' ? 'active' : ''} 
+          <Link
+            to="/dashboard"
+            className={location.pathname === "/dashboard" ? "active" : ""}
             onClick={() => setMenuOpen(false)}
           >
             Dashboard
           </Link>
         </li>
         <li>
-          <Link 
-            to="/users" 
-            className={location.pathname === '/users' ? 'active' : ''} 
+          <Link
+            to="/users"
+            className={location.pathname === "/users" ? "active" : ""}
             onClick={() => setMenuOpen(false)}
           >
             Usuarios
           </Link>
         </li>
         <li>
-          <Link to="/clientes" onClick={() => setMenuOpen(false)}>Clientes</Link>
+          <Link to="/clientes" onClick={() => setMenuOpen(false)}>
+            Clientes
+          </Link>
         </li>
         <li>
-          <Link to="/empleados" onClick={() => setMenuOpen(false)}>Empleados</Link>
+          <Link to="/empleados" onClick={() => setMenuOpen(false)}>
+            Empleados
+          </Link>
         </li>
         <li>
-          <Link 
-            to="/roles" 
-            className={location.pathname === '/roles' ? 'active' : ''} 
+          <Link
+            to="/roles"
+            className={location.pathname === "/roles" ? "active" : ""}
             onClick={() => setMenuOpen(false)}
           >
             Roles y Permisos
