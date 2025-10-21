@@ -37,8 +37,8 @@ environ.Env.read_env(os.path.join(BASE_DIR, '..', '.env'))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.0.200", "localhost", "127.0.0.1"]
-
+#ALLOWED_HOSTS = ["192.168.0.200", "localhost", "127.0.0.1",]
+ALLOWED_HOSTS = ['*']  # solo para desarrollo
 
 # Application definition
 
@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'corsheaders',
     "django_extensions",
     'api',
+    'bitacora',
 ]
 
 MIDDLEWARE = [
@@ -64,6 +65,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    "bitacora.middleware.AuditLogMiddleware", #si van a añadir algo despues de aqui, por fa dejen a bitacora al final, asi como esta.
+
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True # solo para desarrollo
@@ -82,6 +85,12 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    # para bitacora
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],

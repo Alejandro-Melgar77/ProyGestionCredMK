@@ -85,48 +85,73 @@ export default function Sidebar() {
 
       <nav className="sidebar__nav">
         <NavLink to="/" end className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>🏠</span>
+          <span className="sidebar__icon" aria-hidden>
+            🏠
+          </span>
           {!collapsed && <span>Dashboard</span>}
         </NavLink>
 
         <NavLink to="/users" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>👥</span>
+          <span className="sidebar__icon" aria-hidden>
+            👥
+          </span>
           {!collapsed && <span>Usuarios</span>}
         </NavLink>
 
         <NavLink to="/clientes" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>🧾</span>
+          <span className="sidebar__icon" aria-hidden>
+            🧾
+          </span>
           {!collapsed && <span>Clientes</span>}
         </NavLink>
 
         <NavLink to="/empleados" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>🧑‍💼</span>
+          <span className="sidebar__icon" aria-hidden>
+            🧑‍💼
+          </span>
           {!collapsed && <span>Empleados</span>}
         </NavLink>
 
         <NavLink to="/roles" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>🛡️</span>
+          <span className="sidebar__icon" aria-hidden>
+            🛡️
+          </span>
           {!collapsed && <span>Roles y Permisos</span>}
         </NavLink>
 
         <NavLink to="/solicitudes" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>📄</span>
+          <span className="sidebar__icon" aria-hidden>
+            📄
+          </span>
           {!collapsed && <span>Solicitudes</span>}
         </NavLink>
 
         <NavLink to="/solicitudes/nueva" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>➕</span>
+          <span className="sidebar__icon" aria-hidden>
+            ➕
+          </span>
           {!collapsed && <span>Nueva solicitud</span>}
         </NavLink>
 
         <NavLink to="/simulador" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>🧮</span>
+          <span className="sidebar__icon" aria-hidden>
+            🧮
+          </span>
           {!collapsed && <span>Simulador</span>}
         </NavLink>
 
         <NavLink to="/productos/requisitos" className="sidebar__link">
-          <span className="sidebar__icon" aria-hidden>🧩</span>
+          <span className="sidebar__icon" aria-hidden>
+            🧩
+          </span>
           {!collapsed && <span>Editor de requisitos</span>}
+        </NavLink>
+
+        <NavLink to="/bitacora" className="sidebar__link">
+          <span className="sidebar__icon" aria-hidden>
+            📋
+          </span>
+          {!collapsed && <span>Bitácora</span>}
         </NavLink>
 
         {/* Cerrar sesión desde el menú lateral */}
@@ -135,7 +160,9 @@ export default function Sidebar() {
           onClick={handleLogout}
           className="sidebar__link sidebar__link--danger"
         >
-          <span className="sidebar__icon" aria-hidden>🚪</span>
+          <span className="sidebar__icon" aria-hidden>
+            🚪
+          </span>
           {!collapsed && <span>Cerrar sesión</span>}
         </a>
       </nav>
