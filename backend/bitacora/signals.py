@@ -37,10 +37,10 @@ def on_login(sender, request, user, **kwargs):
             estado_http=200,
         )
 
-        print(f"[Bitácora] ✅ Inicio de sesión registrado para usuario: {username_display}")
+        print(f"[Bitácora] Inicio de sesión registrado para usuario: {username_display}")
 
     except Exception as e:
-        print(f"[Bitácora] ⚠️ Error registrando login: {e}")
+        print(f"[Bitácora] Error registrando login: {e}")
         pass
 
 
@@ -62,8 +62,8 @@ def on_logout(sender, request, user, **kwargs):
             estado_http=200,
         )
 
-        print(f"[Bitácora] ✅ Cierre de sesión registrado para usuario: {username_display}")
+        print(f"[Bitácora] Cierre de sesión registrado para usuario: {username_display}")
 
     except Exception as e:
-        print(f"[Bitácora] ⚠️ Error registrando logout: {e}")
+        print(f"[Bitácora] Error registrando logout: {e}")
         pass

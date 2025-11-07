@@ -14,7 +14,8 @@ urlpatterns = [
     # JWT
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/bitacora/', include('bitacora.urls')),
+    path('api/', include('bitacora.urls')),
+    #path('api/bitacora/', include('bitacora.urls')), Antes de reporte
 ]
 
 # Media en desarrollo

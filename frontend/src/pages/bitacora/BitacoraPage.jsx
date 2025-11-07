@@ -1,108 +1,156 @@
-// src/pages/bitacora/BitacoraPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { Download as DownloadIcon } from "@mui/icons-material";
 import api from "../../config/axios";
 
-export default function BitacoraPage() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const BitacoraPage = () => {
+  const [bitacora, setBitacora] = useState([]);
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
 
   useEffect(() => {
-    const fetchLogs = async () => {
+    const fetchBitacora = async () => {
       try {
-        const res = await api.get("/api/bitacora/bitacora/");
-        if (Array.isArray(res.data)) {
-          setLogs(res.data);
-        } else {
-          setError("Respuesta inesperada del servidor.");
-          console.warn("Respuesta inesperada:", res.data);
-        }
-      } catch (err) {
-        console.error("Error al cargar bitácora:", err);
-        setError("No se pudo obtener la bitácora. Verifique su autenticación.");
-      } finally {
-        setLoading(false);
+        const response = await api.get("/api/bitacora/");
+        setBitacora(response.data.results || response.data);
+      } catch (error) {
+        console.error("Error al cargar bitácora:", error);
       }
     };
-    fetchLogs();
+    fetchBitacora();
   }, []);
 
-  if (loading) return <p className="p-4 text-center">Cargando bitácora...</p>;
-  if (error)
-    return (
-      <p className="p-4 text-center text-red-600 font-semibold">{error}</p>
-    );
+  const exportarPDF = () => {
+    const url = `http://localhost:8000/api/bitacora/reporte/?desde=${desde}&hasta=${hasta}`;
+    window.open(url, "_blank");
+  };
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50 flex flex-col items-center">
-      <div className="w-full max-w-7xl bg-white shadow-md rounded-2xl p-6">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Registro de Bitácora
-        </h2>
+    <Box sx={{ p: 4, backgroundColor: "#f5f6fa", minHeight: "100vh" }}>
+      <Typography
+        variant="h5"
+        fontWeight="bold"
+        align="center"
+        sx={{ mb: 3, color: "#1a237e" }}
+      >
+        Registro de Bitácora
+      </Typography>
 
-        {logs.length === 0 ? (
-          <p className="text-center text-gray-500">No hay registros aún.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
-            <table className="min-w-full text-sm text-left border-collapse">
-              <thead className="bg-gray-100 text-gray-700 font-semibold">
-                <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Usuario</th>
-                  <th className="p-3">Acción</th>
-                  <th className="p-3">Ruta</th>
-                  <th className="p-3">Método</th>
-                  <th className="p-3">IP</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3">Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((l, index) => (
-                  <tr
-                    key={l.id}
-                    className={`${
-                      index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-blue-50 transition-colors`}
-                  >
-                    <td className="p-3 text-gray-600">{index + 1}</td>
+      {/* Controles de filtro */}
+      <Paper
+        elevation={3}
+        sx={{
+          p: 3,
+          mb: 4,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+          flexWrap: "wrap",
+          backgroundColor: "#ffffff",
+          borderRadius: 2,
+        }}
+      >
+        <TextField
+          label="Desde"
+          type="date"
+          size="small"
+          value={desde}
+          onChange={(e) => setDesde(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          label="Hasta"
+          type="date"
+          size="small"
+          value={hasta}
+          onChange={(e) => setHasta(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+        <Button
+          variant="contained"
+          startIcon={<DownloadIcon />}
+          onClick={exportarPDF}
+          sx={{
+            backgroundColor: "#1a237e",
+            "&:hover": { backgroundColor: "#0d164c" },
+            borderRadius: 2,
+            px: 3,
+          }}
+        >
+          Exportar PDF
+        </Button>
+      </Paper>
 
-                    {/* 👇 Ajuste: si no hay usuario, muestra 'Sistema' */}
-                    <td className="p-3 font-medium text-gray-800">
-                      {l.usuario && l.usuario.trim() !== ""
-                        ? l.usuario
-                        : "Sistema"}
-                    </td>
-
-                    <td className="p-3 text-gray-700">{l.accion}</td>
-                    <td className="p-3 text-gray-600 truncate max-w-[200px]">
-                      {l.ruta}
-                    </td>
-                    <td className="p-3 text-gray-700">{l.metodo}</td>
-                    <td className="p-3 text-gray-600">{l.ip}</td>
-
-                    <td
-                      className={`p-3 font-semibold ${
-                        l.estado_http >= 400
-                          ? "text-red-500"
-                          : l.estado_http >= 300
-                          ? "text-yellow-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {l.estado_http}
-                    </td>
-
-                    <td className="p-3 text-gray-700">
-                      {new Date(l.creado_en).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+      {/* Tabla de bitácora */}
+      <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
+        <Table>
+          <TableHead sx={{ backgroundColor: "#1a237e" }}>
+            <TableRow>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                #
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                Usuario
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                Acción
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                Ruta
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                Método
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                IP
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                Estado
+              </TableCell>
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                Fecha
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {bitacora.map((log, index) => (
+              <TableRow
+                key={index}
+                sx={{
+                  "&:nth-of-type(odd)": { backgroundColor: "#f9f9f9" },
+                  "&:hover": { backgroundColor: "#e8eaf6" },
+                }}
+              >
+                <TableCell>{index + 1}</TableCell>
+                <TableCell>{log.usuario || "Sistema"}</TableCell>
+                <TableCell>{log.accion}</TableCell>
+                <TableCell>{log.ruta}</TableCell>
+                <TableCell>{log.metodo}</TableCell>
+                <TableCell>{log.ip}</TableCell>
+                <TableCell>{log.estado_http}</TableCell>
+                <TableCell>
+                  {new Date(log.creado_en).toLocaleString()}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
-}
+};
+
+export default BitacoraPage;

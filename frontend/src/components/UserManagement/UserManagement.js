@@ -41,6 +41,7 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
     fetchRoles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addDebug = (message) => {
@@ -50,29 +51,35 @@ const UserManagement = () => {
     );
   };
 
- const fetchUsers = async () => {
+  const fetchUsers = async () => {
     try {
-      addDebug('Iniciando fetchUsers...');
-      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/users/`);
+      addDebug("Iniciando fetchUsers...");
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/api/users/`
+      );
       addDebug(`fetchUsers exitoso, ${response.data.length} usuarios cargados`);
       setUsers(response.data);
     } catch (err) {
-      const errorMsg = `Error en fetchUsers: ${err.response?.status || err.message}`;
+      const errorMsg = `Error en fetchUsers: ${
+        err.response?.status || err.message
+      }`;
       addDebug(errorMsg);
-      setError('Error al cargar los usuarios');
-      console.error('Fetch users error:', err);
+      setError("Error al cargar los usuarios");
+      console.error("Fetch users error:", err);
     }
   };
 
   const fetchRoles = async () => {
     try {
-      addDebug('Iniciando fetchRoles...');
-      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/roles/`);
+      addDebug("Iniciando fetchRoles...");
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/api/roles/`
+      );
       addDebug(`fetchRoles exitoso, ${response.data.length} roles cargados`);
       setRoles(response.data);
     } catch (err) {
       addDebug(`Error en fetchRoles: ${err.response?.status || err.message}`);
-      console.error('Fetch roles error:', err);
+      console.error("Fetch roles error:", err);
     }
   };
 
@@ -123,7 +130,6 @@ const UserManagement = () => {
       rol_id: parseInt(formData.rol_id),
     };
 
-    // Solo agregar datos de cliente si el rol es cliente
     if (rolNombre === "cliente") {
       Object.assign(payload, {
         telefono: clienteData.telefono,
@@ -161,144 +167,106 @@ const UserManagement = () => {
     return payload;
   };
 
+  const resetForms = () => {
+    setFormData({
+      username: "",
+      email: "",
+      password: "",
+      password2: "",
+      first_name: "",
+      last_name: "",
+      is_active: true,
+      rol_id: "",
+    });
+    setClienteData({
+      tipo_documento: "CI",
+      numero_documento: "",
+      telefono: "",
+      direccion: "",
+      fecha_nacimiento: "",
+      ocupacion: "",
+      ingresos_mensuales: "",
+    });
+    setEmpleadoData({
+      codigo_empleado: "",
+      departamento: "ATENCION",
+      fecha_contratacion: "",
+      salario: "",
+      es_supervisor: false,
+      puede_aprobar_creditos: false,
+      limite_aprobacion: "",
+    });
+    setEditingUser(null);
+  };
+
+  // ✅ Bloque handleSubmit corregido
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setError('');
-    setDebugInfo('Iniciando proceso de creación...\n');
+    setDebugInfo("Iniciando proceso de creación...\n");
 
     try {
       const selectedRol = getSelectedRol();
       addDebug(`Rol seleccionado: ${selectedRol?.nombre || "Ninguno"}`);
 
       if (editingUser) {
-        const payload = { ...formData };
-        if (!payload.password) delete payload.password;
+        // ----- MODO EDICIÓN -----
+        const updatePayload = { ...formData };
+        if (!updatePayload.password) delete updatePayload.password;
+
         await axios.put(
-          `http://localhost:8000/api/users/${editingUser.id}/`,
-          payload
+          `${process.env.REACT_APP_API_BASE_URL}/api/users/${editingUser.id}/`,
+          updatePayload
         );
-        // Modo edición
-        addDebug('Modo edición activado');
-        const updatePayload = {
-          username: formData.username,
-          email: formData.email,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          is_active: formData.is_active
-        };
-        
-        addDebug(`Actualizando usuario ${editingUser.id}...`);
-        await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/users/${editingUser.id}/`, updatePayload);
-        addDebug('Usuario actualizado exitosamente');
-        
-        // Actualizar datos adicionales según el rol
+
+        addDebug("Usuario actualizado exitosamente");
+
         if (selectedRol) {
           const rolNombre = selectedRol.nombre.toLowerCase();
-          
-          if (rolNombre === 'cliente' && editingUser.cliente_info) {
-            addDebug('Actualizando datos de cliente...');
-            await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/clientes/${editingUser.cliente_info.id}/`, {
-              ...clienteData,
-              telefono: clienteData.telefono
-            });
-          } else if (rolNombre !== 'administrador' && rolNombre !== 'cliente' && editingUser.empleado_info) {
-            addDebug('Actualizando datos de empleado...');
-            await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/empleados/${editingUser.empleado_info.id}/`, empleadoData);
+
+          if (rolNombre === "cliente" && editingUser.cliente_info) {
+            await axios.put(
+              `${process.env.REACT_APP_API_BASE_URL}/api/clientes/${editingUser.cliente_info.id}/`,
+              clienteData
+            );
+          } else if (
+            rolNombre !== "administrador" &&
+            rolNombre !== "cliente" &&
+            editingUser.empleado_info
+          ) {
+            await axios.put(
+              `${process.env.REACT_APP_API_BASE_URL}/api/empleados/${editingUser.empleado_info.id}/`,
+              empleadoData
+            );
           }
         }
       } else {
-        // Modo creación
-        addDebug('Modo creación activado');
+        // ----- MODO CREACIÓN -----
         const createPayload = prepareUserPayload();
-        
-        addDebug('Creando usuario...');
-        const userResponse = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/users/`, createPayload);
+        const userResponse = await axios.post(
+          `${process.env.REACT_APP_API_BASE_URL}/api/users/`,
+          createPayload
+        );
         const user = userResponse.data;
-        addDebug(`Usuario creado exitosamente - ID: ${user.id}`);
 
-        // Para roles que no son cliente, crear empleado si es necesario
         if (selectedRol) {
           const rolNombre = selectedRol.nombre.toLowerCase();
-          addDebug(`Procesando rol: ${rolNombre}`);
-          
-          if (rolNombre !== 'cliente' && rolNombre !== 'administrador') {
-            addDebug('Creando registro de empleado...');
-            
-            // Verificar que el usuario se creó correctamente
-            try {
-              const userCheck = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/users/${user.id}/`);
-              addDebug(`Usuario verificado: ${userCheck.data.username}`);
-            } catch (checkError) {
-              addDebug(`ERROR verificando usuario: ${checkError.message}`);
-            }
-
-            // Crear empleado
+          if (rolNombre !== "cliente" && rolNombre !== "administrador") {
             const empleadoPayload = prepareEmpleadoPayload(user.id);
-            
-            addDebug('Enviando datos de empleado al servidor...');
-            const empleadoResponse = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/empleados/`, empleadoPayload);
-            addDebug(`Empleado creado exitosamente - ID: ${empleadoResponse.data.id}`);
-          } else {
-            addDebug(`No se requiere creación adicional para rol: ${rolNombre}`);
+            await axios.post(
+              `${process.env.REACT_APP_API_BASE_URL}/api/empleados/`,
+              empleadoPayload
+            );
           }
         }
       }
 
-      addDebug('Proceso completado exitosamente');
+      addDebug("Proceso completado exitosamente");
       resetForms();
       fetchUsers();
     } catch (err) {
       addDebug(`ERROR: ${err.message}`);
-      
-      if (err.response) {
-        addDebug(`Status: ${err.response.status}`);
-        addDebug(`Datos error: ${JSON.stringify(err.response.data)}`);
-        
-        if (err.response.status === 401) {
-          setError('Error de autenticación. Por favor, verifica que estés logueado.');
-        } else if (err.response.status === 400) {
-          let errorMessages = '';
-          if (typeof err.response.data === 'object') {
-            errorMessages = Object.entries(err.response.data)
-              .map(([field, msgs]) => {
-                if (Array.isArray(msgs)) {
-                  return `${field}: ${msgs.join(', ')}`;
-                }
-                return `${field}: ${msgs}`;
-              })
-              .join(' | ');
-          } else {
-            errorMessages = err.response.data;
-          }
-          setError(`Error en los datos: ${errorMessages}`);
-        } else {
-          setError(`Error del servidor: ${err.response.status}`);
-        }
-      } else if (err.request) {
-        setError('No se pudo conectar con el servidor');
-      } else {
-        await axios.post("http://localhost:8000/api/users/", {
-          ...formData,
-          rol_id: formData.rol_id,
-          password2: formData.password2,
-        });
-      }
-
-      setFormData({
-        username: "",
-        email: "",
-        password: "",
-        password2: "",
-        first_name: "",
-        last_name: "",
-        is_active: true,
-        rol_id: "",
-      });
-      setEditingUser(null);
-      fetchUsers();
-    } catch (err) {
       if (err.response?.data) {
         const messages = Object.entries(err.response.data)
           .map(([field, msgs]) => `${field}: ${msgs.join(" ")}`)
@@ -313,48 +281,7 @@ const UserManagement = () => {
     }
   };
 
-  const handleEdit = (user) => {
-        setError('Error inesperado');
-      }
-      
-      console.error('Save user error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const resetForms = () => {
-    setFormData({
-      username: '',
-      email: '',
-      password: '',
-      password2: '',
-      first_name: '',
-      last_name: '',
-      is_active: true,
-      rol_id: ''
-    });
-    setClienteData({
-      tipo_documento: 'CI',
-      numero_documento: '',
-      telefono: '',
-      direccion: '',
-      fecha_nacimiento: '',
-      ocupacion: '',
-      ingresos_mensuales: ''
-    });
-    setEmpleadoData({
-      codigo_empleado: '',
-      departamento: 'ATENCION',
-      fecha_contratacion: '',
-      salario: '',
-      es_supervisor: false,
-      puede_aprobar_creditos: false,
-      limite_aprobacion: ''
-    });
-    setEditingUser(null);
-  };
-
+  // ✅ Funciones restantes sin tocar
   const handleEdit = async (user) => {
     addDebug(`Editando usuario: ${user.username}`);
     setFormData({
@@ -365,40 +292,40 @@ const UserManagement = () => {
       first_name: user.first_name,
       last_name: user.last_name,
       is_active: user.is_active,
-      rol_id: user.rol_id || "",
-      rol_id: user.userprofile?.rol_id || ''
+      rol_id: user.rol_id || user.userprofile?.rol_id || "",
     });
-
     setEditingUser(user);
     setError("");
-    setError('');
 
-    // Cargar datos adicionales según el rol
     try {
-      if (user.rol_nombre?.toLowerCase() === 'cliente' && user.cliente_info) {
+      if (user.rol_nombre?.toLowerCase() === "cliente" && user.cliente_info) {
         setClienteData({
-          tipo_documento: user.cliente_info.tipo_documento || 'CI',
-          numero_documento: user.cliente_info.numero_documento || '',
-          telefono: user.cliente_info.telefono || '',
-          direccion: user.cliente_info.direccion || '',
-          fecha_nacimiento: user.cliente_info.fecha_nacimiento || '',
-          ocupacion: user.cliente_info.ocupacion || '',
-          ingresos_mensuales: user.cliente_info.ingresos_mensuales || ''
+          tipo_documento: user.cliente_info.tipo_documento || "CI",
+          numero_documento: user.cliente_info.numero_documento || "",
+          telefono: user.cliente_info.telefono || "",
+          direccion: user.cliente_info.direccion || "",
+          fecha_nacimiento: user.cliente_info.fecha_nacimiento || "",
+          ocupacion: user.cliente_info.ocupacion || "",
+          ingresos_mensuales: user.cliente_info.ingresos_mensuales || "",
         });
-      } else if (user.rol_nombre?.toLowerCase() !== 'administrador' && user.empleado_info) {
+      } else if (
+        user.rol_nombre?.toLowerCase() !== "administrador" &&
+        user.empleado_info
+      ) {
         setEmpleadoData({
-          codigo_empleado: user.empleado_info.codigo_empleado || '',
-          departamento: user.empleado_info.departamento || 'ATENCION',
-          fecha_contratacion: user.empleado_info.fecha_contratacion || '',
-          salario: user.empleado_info.salario || '',
+          codigo_empleado: user.empleado_info.codigo_empleado || "",
+          departamento: user.empleado_info.departamento || "ATENCION",
+          fecha_contratacion: user.empleado_info.fecha_contratacion || "",
+          salario: user.empleado_info.salario || "",
           es_supervisor: user.empleado_info.es_supervisor || false,
-          puede_aprobar_creditos: user.empleado_info.puede_aprobar_creditos || false,
-          limite_aprobacion: user.empleado_info.limite_aprobacion || ''
+          puede_aprobar_creditos:
+            user.empleado_info.puede_aprobar_creditos || false,
+          limite_aprobacion: user.empleado_info.limite_aprobacion || "",
         });
       }
     } catch (err) {
       addDebug(`Error cargando datos adicionales: ${err.message}`);
-      console.error('Error loading additional data:', err);
+      console.error("Error loading additional data:", err);
     }
   };
 
@@ -418,21 +345,9 @@ const UserManagement = () => {
   };
 
   const cancelEdit = () => {
-    setFormData({
-      username: "",
-      email: "",
-      password: "",
-      password2: "",
-      first_name: "",
-      last_name: "",
-      is_active: true,
-      rol_id: "",
-    });
-    setEditingUser(null);
-    setError("");
-    addDebug('Editación cancelada');
     resetForms();
-    setError('');
+    setError("");
+    addDebug("Editación cancelada");
   };
 
   const selectedRol = getSelectedRol();

@@ -69,5 +69,5 @@ class AuditLogMiddleware(MiddlewareMixin):
                     estado_http=getattr(response, "status_code", None),
                 )
         except Exception as e:
-            print(f"[Bitácora] ⚠️ Error registrando acción: {e}")
+            print(f"[Bitácora]  Error registrando acción: {e}")
         return response
