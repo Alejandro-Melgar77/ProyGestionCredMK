@@ -372,10 +372,18 @@ class SolicitudCreditoViewSet(viewsets.ModelViewSet):
             {'evento': f'ESTADO_{sol.estado}', 'fecha': sol.updated_at},
         ]
         return Response({'estadoActual': sol.estado, 'timelineEstados': timeline})
+    
+    @action(detail=True, methods=['get'], url_path='plan-pagos', permission_classes=[IsAuthenticated])
+    def plan_pagos(self, request, pk=None):
+        try:
+            plan = PlanPago.objects.prefetch_related('cuotas').get(solicitud_id=pk)
+        except PlanPago.DoesNotExist:
+            return Response({"detail": "Plan no encontrado"}, status=404)
+        return Response(PlanPagoDTO(plan).data)
 
     # ---- Exportar plan (PDF/XLSX) ----
     @action(detail=True, methods=['get'], url_path='plan-pagos/export', permission_classes=[IsAuthenticated])
-    def export_plan(self, request, pk=None):
+    def export_plan(self, request, pk=None, format=None):
         fmt = (request.query_params.get('format') or 'pdf').lower()
         try:
             plan = (PlanPago.objects
@@ -881,14 +889,15 @@ class ValidacionInformacionViewSet(viewsets.ViewSet):
             return Response({'error': str(e)}, status=500)
 class PagoViewSet(viewsets.ViewSet):
     # TEMPORAL: Quita la autenticación para testing
-    permission_classes = []  # Esto permite acceso sin autenticación
+    #permission_classes = []  # Esto permite acceso sin autenticación
+    permission_classes = [IsAuthenticated]
     
     @action(detail=False, methods=['get'], url_path='cuotas-pendientes')
     def cuotas_pendientes(self, request):
         """Obtener cuotas pendientes del cliente autenticado"""
         try:
             # TEMPORAL: Para testing, usa el primer cliente
-            cliente = Cliente.objects.get(numero_documento=1234567)
+            cliente = Cliente.objects.get(user=request.user)
             
             if not cliente:
                 return Response(
@@ -1056,12 +1065,12 @@ class PagoViewSet(viewsets.ViewSet):
                 cuota.save()
                 
                 # Registrar en bitácora
-                Bitacora.objects.create(
-                    usuario=request.user,
-                    tipo_accion="PAGO_CUOTA_EXITOSO",
-                    ip=request.META.get('REMOTE_ADDR'),
-                    created_at=timezone.now()
-                )
+                #Bitacora.objects.create(
+                #    usuario=request.user,
+                #    tipo_accion="PAGO_CUOTA_EXITOSO",
+                #    ip=request.META.get('REMOTE_ADDR'),
+                #    created_at=timezone.now()
+                #)
                 
                 # Enviar comprobante
                 self._enviar_comprobante(cliente, transaccion)
@@ -1123,9 +1132,9 @@ class PagoViewSet(viewsets.ViewSet):
         
         # Aquí iría la lógica para enviar el email con el comprobante
         # Por ahora solo registro en bitácora
-        Bitacora.objects.create(
-            usuario=cliente.user,
-            tipo_accion="COMPROBANTE_ENVIADO",
-            ip=None,
-            created_at=timezone.now()
-        )
+        #Bitacora.objects.create(
+        #    usuario=cliente.user,
+        #    tipo_accion="COMPROBANTE_ENVIADO",
+        #    ip=None,
+        #    created_at=timezone.now()
+        #)

@@ -146,6 +146,12 @@ export default function Sidebar() {
           </span>
           {!collapsed && <span>Editor de requisitos</span>}
         </NavLink>
+        <NavLink to="/pagos" className="sidebar__link">
+          <span className="sidebar__icon" aria-hidden>
+            💳
+          </span>
+          {!collapsed && <span>Pagos</span>}
+        </NavLink>
 
         <NavLink to="/bitacora" className="sidebar__link">
           <span className="sidebar__icon" aria-hidden>

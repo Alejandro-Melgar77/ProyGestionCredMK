@@ -49,11 +49,11 @@ urlpatterns = [
     #Para inicio de sesion bitacora
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     # —— PLAN DE PAGO (detalle + generar) ——  
-    path(
-        'solicitudes/<uuid:solicitud_id>/plan-pagos/',
-        PlanPagoDetailView.as_view({'get': 'list'}),
-        name='plan-detail'
-    ),
+    #path(
+    #    'solicitudes/<uuid:solicitud_id>/plan-pagos/',
+    #    PlanPagoDetailView.as_view({'get': 'list'}),
+    #    name='plan-detail'
+    #),
     path(
         'solicitudes/<uuid:solicitud_id>/plan-pagos/generar/',
         PlanPagoGenerateView.as_view({'post': 'create'}),

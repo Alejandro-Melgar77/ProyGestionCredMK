@@ -23,7 +23,8 @@ class Command(BaseCommand):
         
         # Crear usuario cliente
         usuario_cliente, created = User.objects.get_or_create(
-            id='20',
+            #id='20',
+            username='cliente_test',
             defaults={
                 'email': 'cliente@test.com',
                 'first_name': 'Juan',

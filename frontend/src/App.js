@@ -34,6 +34,8 @@ import PlanView from "./pages/solicitudes/PlanView";
 import Simulador from "./pages/solicitudes/Simulador";
 import InformationValidation from "./components/InformationValidation/InformationValidation";
 
+import ListaCuotasPendientes from './components/pagos/ListaCuotasPendientes';
+
 // Productos
 import RequisitosEditor from "./pages/productos/RequisitosEditor";
 
@@ -240,7 +242,16 @@ function App() {
             </RequireAuth>
           }
         />
-
+        <Route
+          path="/pagos"
+          element={
+            <RequireAuth authed={isAuthenticated} loading={authLoading}>
+              <Layout>
+                <ListaCuotasPendientes />
+              </Layout>
+            </RequireAuth>
+          }
+        />
         {/* Bitácora (protegida) */}
         <Route
           path="/bitacora"

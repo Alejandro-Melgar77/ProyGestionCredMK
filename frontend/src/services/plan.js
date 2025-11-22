@@ -14,16 +14,16 @@ export async function generarPlan(solicitudId, { overwrite = false } = {}) {
   return data; // { plan_id: "..." }
 }
 
-/** Construye URL absoluta (solo si tu endpoint fuera público; aquí NO lo uses para descargar) */
+/** Construye URL absoluta (backend exige slash final en /export/) */
 export function getPlanExportUrl(solicitudId, format = 'pdf') {
   const base = api.defaults.baseURL || (import.meta.env?.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000');
-  // 👇 OJO: el backend exige slash final en /export/
   return `${base}/api/solicitudes/${solicitudId}/plan-pagos/export/?format=${format}`;
 }
 
-/** ⬇️ Descargar (PDF/XLSX) usando axios con token */
+/** Descargar plan (PDF/XLSX) usando axios con token */
 export async function downloadPlan(solicitudId, format = 'pdf') {
-  const url = `/api/solicitudes/${solicitudId}/plan-pagos/export/?format=${format}`;
+  // ✅ Usa URL absoluta y correcta
+  const url = getPlanExportUrl(solicitudId, format);
 
   const response = await api.get(url, {
     responseType: 'blob', // para archivos binarios

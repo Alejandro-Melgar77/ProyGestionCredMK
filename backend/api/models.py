@@ -153,7 +153,7 @@ class SolicitudCredito(models.Model):
 
 class PlanPago(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    solicitud = models.ForeignKey(
+    solicitud = models.OneToOneField(
     SolicitudCredito,
     on_delete=models.CASCADE,
     related_name='plan',

@@ -63,7 +63,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"👤 Cliente {username} ya existe."))
 
             UserProfile.objects.get_or_create(user=user, rol=rol_cliente)
-            Cliente.objects.get_or_create(user=user, ci=f"10{user.id:04d}", telefono="70000000")
+            Cliente.objects.get_or_create(user=user, numero_documento=f"10{user.id:04d}", telefono="70000000")
 
         # === 4. Cargar fixture de productos y requisitos ===
         self.stdout.write(self.style.WARNING("📦 Cargando fixture productos_requisitos.json ..."))

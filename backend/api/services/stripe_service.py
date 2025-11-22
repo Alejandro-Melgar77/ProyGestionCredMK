@@ -58,57 +58,70 @@ class StripeService:
     
     def confirmar_payment_intent(self, payment_intent_id):
         """
-        Confirmar que un PaymentIntent fue exitoso
+        Verificar que un PaymentIntent fue exitoso.
+        No vuelve a confirmar el PaymentIntent, solo consulta su estado.
         """
         try:
             logger.info(f"🔍 Verificando PaymentIntent: {payment_intent_id}")
-            
-            # Recuperar el PaymentIntent
-            intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-            
+
+            # Recuperar el PaymentIntent desde Stripe
+            intent = stripe.PaymentIntent.retrieve(
+                payment_intent_id,
+                expand=["charges"]
+            )
             logger.info(f"📊 Estado del PaymentIntent: {intent.status}")
-            
+
             if intent.status == 'succeeded':
                 # Buscar el charge asociado
-                charges = stripe.Charge.list(payment_intent=payment_intent_id, limit=1)
-                charge = charges.data[0] if charges.data else None
+                charges = intent.get("charges", None)
                 
+                if charges and charges.data:
+                    charge = charges.data[0]
+                else:
+                    charge = None
+
                 codigo_autorizacion = charge.id if charge else intent.id
-                
+                stripe_charge_id = charge.id if charge else None
+
                 logger.info(f"✅ Pago exitoso: {intent.id}")
-                
+
                 return {
                     'estado': 'aprobado',
                     'codigo_autorizacion': codigo_autorizacion,
                     'referencia': f"STRIPE-{intent.id[-8:].upper()}",
                     'datos_adicionales': {
                         'stripe_payment_intent': intent.id,
-                        'stripe_charge_id': charge.id if charge else None,
+                        'stripe_charge_id': stripe_charge_id,
                         'monto_pagado': intent.amount_received / 100,
                         'moneda': intent.currency,
                         'estado': intent.status
                     }
                 }
+
             elif intent.status in ['processing', 'requires_capture']:
                 logger.info(f"⏳ Pago en proceso: {intent.status}")
                 return {
                     'estado': 'procesando',
                     'mensaje': f'El pago está {intent.status}'
                 }
+
             else:
                 logger.warning(f"⚠️ Pago no exitoso. Estado: {intent.status}")
                 return {
                     'estado': 'fallido',
                     'mensaje': f'El pago falló con estado: {intent.status}'
                 }
-                
+
         except stripe.error.StripeError as e:
+            # Error devuelto por Stripe
             logger.error(f"❌ Error de Stripe al confirmar: {str(e)}")
             return {
                 'estado': 'error',
                 'mensaje': f'Error de Stripe: {str(e)}'
             }
+
         except Exception as e:
+            # Error inesperado en tu servidor
             logger.error(f"❌ Error inesperado al confirmar: {str(e)}")
             import traceback
             logger.error(f"📋 Traceback: {traceback.format_exc()}")
@@ -116,6 +129,7 @@ class StripeService:
                 'estado': 'error',
                 'mensaje': f'Error inesperado: {str(e)}'
             }
+
     
     def obtener_metodos_pago(self, payment_intent_id):
         """
