@@ -5,8 +5,8 @@ import axios from "axios";
 const API_BASE =
   process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === "production"
-    ? "https://proygestioncredmk.onrender.com"
-    : "http://127.0.0.1:8000");
+    ? "https://proygestioncredmk.onrender.com/api"  
+    : "http://127.0.0.1:8000/api");               
 
 // Crear instancia
 const api = axios.create({
