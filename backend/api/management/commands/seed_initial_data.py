@@ -3,6 +3,8 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from api.models import Rol, UserProfile, Cliente
 from django.core.management import call_command
+from django.conf import settings
+import os
 
 class Command(BaseCommand):
     help = "Carga datos iniciales: roles, usuarios y fixture de productos/requisitos"
@@ -67,6 +69,8 @@ class Command(BaseCommand):
 
         # === 4. Cargar fixture de productos y requisitos ===
         self.stdout.write(self.style.WARNING("📦 Cargando fixture productos_requisitos.json ..."))
-        call_command("loaddata", "api/fixtures/productos_requisitos.json")
+
+        fixture_path = os.path.join(settings.BASE_DIR, "api", "fixtures", "productos_requisitos.json")
+        call_command("loaddata", fixture_path)
 
         self.stdout.write(self.style.SUCCESS("✅ Datos base cargados exitosamente."))
