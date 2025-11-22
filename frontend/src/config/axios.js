@@ -5,8 +5,8 @@ import axios from "axios";
 const API_BASE =
   process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === "production"
-    ? "https://proygestioncredmk.onrender.com/api"  
-    : "http://127.0.0.1:8000/api");               
+    ? "https://proygestioncredmk.onrender.com/api"
+    : "http://127.0.0.1:8000/api");
 
 // Crear instancia
 const api = axios.create({
@@ -43,26 +43,36 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // Si token expiró, intentamos refrescar
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const refresh = localStorage.getItem("refresh_token");
+
       if (refresh) {
         try {
-          const res = await axios.post(`${API_BASE}/api/auth/refresh/`, {
-            refresh,
-          });
+          // OJO: ya no duplicamos /api
+          const res = await axios.post(
+            `${process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === "production"
+              ? "https://proygestioncredmk.onrender.com/api"
+              : "http://127.0.0.1:8000/api")}/auth/refresh/`,
+            { refresh }
+          );
+
           const newAccess = res.data.access;
           localStorage.setItem("access_token", newAccess);
+
           api.defaults.headers.common.Authorization = `Bearer ${newAccess}`;
           originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+
           return api(originalRequest);
         } catch (err) {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
+          clearTokenPair();
           window.location.href = "/login";
         }
       }
     }
+
     return Promise.reject(error);
   }
 );
