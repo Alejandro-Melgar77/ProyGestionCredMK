@@ -1,6 +1,6 @@
 // src/components/Login/Login.js
 import React, { useState } from 'react';
-import axios from '../../config/axios';
+import api from '../../config/axios'; // <-- Importación corregida
 import './Login.css';
 
 const Login = ({ onLoginSuccess }) => {
@@ -16,22 +16,24 @@ const Login = ({ onLoginSuccess }) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+
     try {
-      // Usa la instancia y ruta relativa
-      const { data } = await axios.post('/api/auth/login/', credentials);
+      // Usa correctamente la instancia api con la ruta relativa
+      const { data } = await api.post('/api/auth/login/', credentials);
+
       const { access, refresh } = data;
 
+      // Guardar tokens
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
 
-      // Como ya tenemos interceptor, no hace falta setear defaults aquí,
-      // pero no hace daño si quieres mantenerlo:
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+      // Opcional: setear Authorization manualmente
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
-      onLoginSuccess?.();
+      if (onLoginSuccess) onLoginSuccess();
     } catch (err) {
-      setError('Credenciales inválidas. Por favor, intente nuevamente.');
       console.error('Login error:', err);
+      setError('Credenciales inválidas. Por favor, intente nuevamente.');
     } finally {
       setIsLoading(false);
     }
@@ -42,16 +44,32 @@ const Login = ({ onLoginSuccess }) => {
       <form className="login-form" onSubmit={handleSubmit}>
         <h2>Iniciar Sesión</h2>
         {error && <div className="error-message">{error}</div>}
+
         <div className="form-group">
           <label htmlFor="username">Usuario:</label>
-          <input id="username" name="username" value={credentials.username}
-                 onChange={handleChange} required autoComplete="username" />
+          <input
+            id="username"
+            name="username"
+            value={credentials.username}
+            onChange={handleChange}
+            required
+            autoComplete="username"
+          />
         </div>
+
         <div className="form-group">
           <label htmlFor="password">Contraseña:</label>
-          <input type="password" id="password" name="password" value={credentials.password}
-                 onChange={handleChange} required autoComplete="current-password" />
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={credentials.password}
+            onChange={handleChange}
+            required
+            autoComplete="current-password"
+          />
         </div>
+
         <button type="submit" className="login-button" disabled={isLoading}>
           {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
         </button>

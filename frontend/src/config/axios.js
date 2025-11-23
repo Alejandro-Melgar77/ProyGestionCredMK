@@ -1,33 +1,30 @@
 // src/config/axios.js
 import axios from "axios";
 
-// Base de la API (detecta entorno)
 const API_BASE =
   process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === "production"
-    ? "https://proygestioncredmk.onrender.com/api"
-    : "http://127.0.0.1:8000/api");
+    ? "https://proygestioncredmk.onrender.com"
+    : "http://127.0.0.1:8000");
 
-// Crear instancia
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: process.env.REACT_APP_API_BASE_URL
 });
 
-// Interceptor REQUEST
+// REQUEST interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Interceptor RESPONSE
+// RESPONSE interceptor
 api.interceptors.response.use(
   (response) => {
+    // Manejo de paginación DRF
     if (response.data && "results" in response.data) {
       return {
         ...response,
@@ -44,22 +41,20 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Si token expiró, intentamos refrescar
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+
       const refresh = localStorage.getItem("refresh_token");
 
       if (refresh) {
         try {
-          // OJO: ya no duplicamos /api
-          const res = await axios.post(
-            `${process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === "production"
-              ? "https://proygestioncredmk.onrender.com/api"
-              : "http://127.0.0.1:8000/api")}/auth/refresh/`,
-            { refresh }
-          );
+          // Ya NO duplicamos /api
+          const res = await axios.post(`${API_BASE}/api/auth/refresh/`, {
+            refresh,
+          });
 
           const newAccess = res.data.access;
+
           localStorage.setItem("access_token", newAccess);
 
           api.defaults.headers.common.Authorization = `Bearer ${newAccess}`;
