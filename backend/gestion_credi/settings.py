@@ -88,18 +88,23 @@ TEMPLATES = [
 # -----------------------------------------------------------
 # CORS
 # -----------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=True)
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "https://proygestioncredmk-1.onrender.com",
-])
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://proygestioncredmk-1.onrender.com",
-]
+if DEBUG:
+    # Local
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+    ]
+else:
+    # Producción
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        "https://proygestioncredmk-1.onrender.com",
+    ]
+    CORS_ALLOW_CREDENTIALS = True
+    CSRF_TRUSTED_ORIGINS = [
+        "https://proygestioncredmk-1.onrender.com",
+    ]
 
 # -----------------------------------------------------------
 # REST Framework
