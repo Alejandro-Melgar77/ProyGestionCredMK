@@ -20,7 +20,7 @@ from .views import (
     ValidacionInformacionViewSet,
 
     #Registro inicio de sesion
-    CustomTokenObtainPairView,
+    CustomTokenObtainPairView, ReporteViewSet,
 )
 
 router = DefaultRouter()
@@ -38,6 +38,7 @@ router.register(r'documento-tipos', DocumentoTipoViewSet, basename='documento-ti
 router.register(r'requisitos', RequisitoProductoDocumentoViewSet, basename='requisitos')
 router.register(r'validacion', ValidacionInformacionViewSet, basename='validacion')
 router.register(r'pagos', PagoViewSet, basename='pagos')  # ✅ Esto genera automáticamente las rutas
+router.register(r'reportes', ReporteViewSet, basename='reportes')
 
 # ViewSet específico para Validación
 validacion_viewset = ValidacionInformacionViewSet.as_view({

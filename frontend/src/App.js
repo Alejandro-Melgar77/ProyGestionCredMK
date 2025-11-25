@@ -42,6 +42,9 @@ import RequisitosEditor from "./pages/productos/RequisitosEditor";
 // Bitácora
 import BitacoraPage from "./pages/bitacora/BitacoraPage";
 
+import VoiceReportGenerator from './components/Reportes/VoiceReportGenerator';
+import HistorialReportes from './components/Reportes/HistorialReportes';
+import ReporteGenerator from './components/Reportes/ReporteGenerator';
 import "./App.css";
 
 function App() {
@@ -248,6 +251,36 @@ function App() {
             <RequireAuth authed={isAuthenticated} loading={authLoading}>
               <Layout>
                 <ListaCuotasPendientes />
+              </Layout>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/reportes"
+          element={
+            <RequireAuth authed={isAuthenticated} loading={authLoading}>
+              <Layout>
+                <ReporteGenerator />
+              </Layout>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/reportes/voz"
+          element={
+            <RequireAuth authed={isAuthenticated} loading={authLoading}>
+              <Layout>
+                <VoiceReportGenerator />
+              </Layout>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/reportes/historial"
+          element={
+            <RequireAuth authed={isAuthenticated} loading={authLoading}>
+              <Layout>
+                <HistorialReportes />
               </Layout>
             </RequireAuth>
           }

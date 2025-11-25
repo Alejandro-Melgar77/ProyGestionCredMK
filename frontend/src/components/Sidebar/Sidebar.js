@@ -152,7 +152,26 @@ export default function Sidebar() {
           </span>
           {!collapsed && <span>Pagos</span>}
         </NavLink>
+        <NavLink to="/reportes" className="sidebar__link">
+          <span className="sidebar__icon" aria-hidden>
+            📄
+          </span>
+          {!collapsed && <span>Reportes</span>}
+        </NavLink>
+          
+        <NavLink to="/reportes/voz" className="sidebar__link">
+          <span className="sidebar__icon" aria-hidden>
+            🎤
+          </span>
+          {!collapsed && <span>Reportes por Voz</span>}
+        </NavLink>
 
+        <NavLink to="/reportes/historial" className="sidebar__link">
+          <span className="sidebar__icon" aria-hidden>
+            🕒
+          </span>
+          {!collapsed && <span>Historial de Reportes</span>}
+        </NavLink>
         <NavLink to="/bitacora" className="sidebar__link">
           <span className="sidebar__icon" aria-hidden>
             📋

@@ -7,7 +7,7 @@ from rest_framework.validators import UniqueValidator
 from .models import (
     Rol, Permiso, RolPermiso, UserProfile,
     Cliente, Empleado, SolicitudCredito, PlanPago, PlanCuota,
-    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago
+    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, Reporte, ConfiguracionReporte
 )
 
 # =========================================================
@@ -798,3 +798,26 @@ class TransaccionPagoSerializer(serializers.ModelSerializer):
             tarjeta = obj.datos_pago['tarjeta']
             return f"{tarjeta.get('marca', 'Tarjeta')} •••• {tarjeta.get('ultimos_4', '')}"
         return None
+    
+
+class ConfiguracionReporteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConfiguracionReporte
+        fields = '__all__'
+
+class ReporteSerializer(serializers.ModelSerializer):
+    generado_por_nombre = serializers.CharField(source='generado_por.get_full_name', read_only=True)
+    
+    class Meta:
+        model = Reporte
+        fields = '__all__'
+        read_only_fields = ('generado_por', 'fecha_generacion')
+
+
+class FiltroReporteSerializer(serializers.Serializer):
+    tipo_reporte = serializers.ChoiceField(choices=Reporte.TIPO_REPORTE_CHOICES)
+    fecha_inicio = serializers.DateField(required=False, allow_null=True)
+    fecha_fin = serializers.DateField(required=False, allow_null=True)
+    estado = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tipo_producto = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    formato = serializers.ChoiceField(choices=Reporte.FORMATO_CHOICES)

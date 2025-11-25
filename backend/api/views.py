@@ -16,22 +16,26 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
+import tempfile
+from datetime import date
+
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-
 import io
 import openpyxl
+import json
 
 from .services.plan_pago import generar_plan
 from .services.simulador import simular_plan
 from .services.validadores import validar_vigencia
+from .services.reporte_service import ReporteGenerator, VoiceCommandProcessor
 
 from .models import (
     Rol, Permiso, RolPermiso, UserProfile,
     Cliente, Empleado, SolicitudCredito,
     PlanPago, ProductoFinanciero,
-    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, PlanCuota,
+    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, PlanCuota, Reporte, ConfiguracionReporte
 )
 
 from .serializers import (
@@ -56,7 +60,11 @@ from .serializers import (
     # Productos / Documentos
     ProductoFinancieroSerializer, DocumentoAdjuntoSerializer, DocumentoTipoSerializer,
     RequisitoProductoDocumentoSerializer, RequisitoProductoDocumentoWriteSerializer,
-    ProcesarValidacionSerializer, ValidacionDocumentoSerializer, ResultadoValidacionIASerializer, DocumentoValidacionSerializer
+    ProcesarValidacionSerializer, ValidacionDocumentoSerializer, ResultadoValidacionIASerializer, DocumentoValidacionSerializer,
+
+    ReporteSerializer,
+    ConfiguracionReporteSerializer,
+    FiltroReporteSerializer
 )
 
 #Bitacora;
@@ -505,7 +513,8 @@ class SimuladorAPIView(APIView):
 class ProductoFinancieroViewSet(viewsets.ModelViewSet):
     queryset = ProductoFinanciero.objects.all()
     serializer_class = ProductoFinancieroSerializer
-    permission_classes = [IsAuthenticated]
+    #permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     @action(detail=True, methods=['get'], url_path='requisitos', permission_classes=[permissions.AllowAny])
     def requisitos(self, request, pk=None):
@@ -524,6 +533,13 @@ class ProductoFinancieroViewSet(viewsets.ModelViewSet):
             },
             'obligatorio': r.obligatorio
         } for r in reqs]
+        return Response(data)
+    
+    @action(detail=False, methods=['get'])
+    def listar_nombres(self, request):
+        """Devuelve una lista de productos para Select"""
+        productos = self.get_queryset()
+        data = [{"id": p.id, "nombre": p.nombre} for p in productos]
         return Response(data)
 
 class DocumentoTipoViewSet(viewsets.ModelViewSet):
@@ -1138,3 +1154,100 @@ class PagoViewSet(viewsets.ViewSet):
         #    ip=None,
         #    created_at=timezone.now()
         #)
+
+class ReporteViewSet(viewsets.ModelViewSet):
+    queryset = Reporte.objects.all()
+    serializer_class = ReporteSerializer
+    permission_classes = []  # ⚡ Sin permisos
+
+    def get_queryset(self):
+        return self.queryset.all()
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    @action(detail=False, methods=['post'])
+    def generar_reporte(self, request):
+        """Genera un reporte sin necesidad de autenticación"""
+        serializer = FiltroReporteSerializer(data=request.data)
+        if serializer.is_valid():
+            filtros = serializer.validated_data
+            tipo_reporte = filtros['tipo_reporte']
+            formato = filtros['formato']
+
+            # Función interna para convertir fechas a string
+            def convertir_fechas_a_str(filtros_dict):
+                filtros_serializables = filtros_dict.copy()
+                for key in ['fecha_inicio', 'fecha_fin']:
+                    if isinstance(filtros_serializables.get(key), date):
+                        filtros_serializables[key] = filtros_serializables[key].isoformat()
+                return filtros_serializables
+
+            filtros_serializables = convertir_fechas_a_str(filtros)
+
+            try:
+                with transaction.atomic():
+                    # ⚡ Generación según tipo de reporte
+                    if tipo_reporte == 'creditos':
+                        buffer, filename, content_type = ReporteGenerator.generar_reporte_creditos(filtros, formato)
+                    elif tipo_reporte == 'clientes':
+                        buffer, filename, content_type = ReporteGenerator.generar_reporte_clientes(filtros, formato)
+                    elif tipo_reporte == 'pagos':
+                        buffer, filename, content_type = ReporteGenerator.generar_reporte_pagos(filtros, formato)
+                    elif tipo_reporte == 'riesgo':
+                        buffer, filename, content_type = ReporteGenerator.generar_reporte_riesgo(filtros, formato)
+                    else:
+                        return Response({'error': 'Tipo de reporte no válido'}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # ⚡ Guardar reporte sin usuario
+                    reporte = Reporte.objects.create(
+                        nombre=f"Reporte_{tipo_reporte}_{filtros.get('fecha_inicio') or ''}",
+                        tipo_reporte=tipo_reporte,
+                        formato=formato,
+                        filtros=filtros_serializables,  # ✅ fechas serializadas
+                        generado_por=None
+                    )
+
+                    if formato == 'texto':
+                        reporte.contenido_texto = buffer.getvalue().decode('utf-8')
+                        reporte.save()
+
+                    response = HttpResponse(buffer.getvalue(), content_type=content_type)
+                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                    return response
+
+            except Exception as e:
+                return Response({'error': f"ERROR DETALLADO GENERANDO REPORTE: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=False, methods=['post'])
+    def procesar_comando_voz(self, request):
+        audio_file = request.FILES.get('audio')
+        if not audio_file:
+            return Response({'error': 'No se envió ningún archivo de audio'}, status=400)
+
+        # Aquí harías la transcripción del audio usando tu servicio de IA o Speech-to-Text
+        # Por ejemplo:
+        transcribed_text = "Simulación: reporte de créditos aprobados esta semana"
+
+        # Extraer filtros desde el texto
+        filters = {
+            'tipo_reporte': 'creditos',
+            'fecha_inicio': '2025-11-01',
+            'fecha_fin': '2025-11-24',
+            'formato': 'excel'
+        }
+
+        # Generar el reporte usando tu función interna
+        buffer, filename, content_type = ReporteGenerator.generar_reporte_creditos(filters, filters['formato'])
+
+        response = HttpResponse(buffer.getvalue(), content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['x-response-data'] = json.dumps({
+            'transcribed_text': transcribed_text,
+            'filters': filters,
+            'filename': filename,
+            'reporte_id': 1
+        })
+        return response

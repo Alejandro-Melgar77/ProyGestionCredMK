@@ -336,4 +336,40 @@ class TransaccionPago(models.Model):
 
     def __str__(self):
         return f"Transacción {self.id} - {self.estado}"
+    
+class Reporte(models.Model):
+    TIPO_REPORTE_CHOICES = [
+        ('creditos', 'Reporte de Créditos'),
+        ('clientes', 'Reporte de Clientes'),
+        ('pagos', 'Reporte de Pagos'),
+        ('riesgo', 'Reporte de Riesgo'),
+    ]
+    
+    FORMATO_CHOICES = [
+        ('pdf', 'PDF'),
+        ('excel', 'Excel'),
+        ('texto', 'Texto'),
+    ]
+    
+    nombre = models.CharField(max_length=200)
+    tipo_reporte = models.CharField(max_length=20, choices=TIPO_REPORTE_CHOICES)
+    formato = models.CharField(max_length=10, choices=FORMATO_CHOICES)
+    filtros = models.JSONField(default=dict)  # Para almacenar los filtros aplicados
+    archivo = models.FileField(upload_to='reportes/', null=True, blank=True)
+    contenido_texto = models.TextField(blank=True)  # Para reportes en texto
+    generado_por = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # ⚡ Permitir null
+    fecha_generacion = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.nombre
+
+class ConfiguracionReporte(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    voz_activa = models.BooleanField(default=False)
+    tipo_voz = models.CharField(max_length=50, default='es-ES-Standard-A')
+    velocidad_voz = models.IntegerField(default=1)  # 0.5 a 2
+    formato_predeterminado = models.CharField(max_length=10, choices=Reporte.FORMATO_CHOICES, default='pdf')
+    
+    def __str__(self):
+        return f"Configuración de {self.usuario.username}"
    
