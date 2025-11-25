@@ -3,9 +3,23 @@ from django.contrib.auth.models import User
 import uuid
 from decimal import Decimal
 
+class Empresa(models.Model):
+    nombre = models.CharField(max_length=100)
+    ruc = models.CharField(max_length=20)
+    telefono = models.CharField(max_length=20, blank=True)
+    
+    def __str__(self):
+        return self.nombre
 
-# Tus modelos existentes
+# Los modelos existentes
 class Rol(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     nombre = models.CharField(max_length=80, unique=True)
     descripcion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -17,6 +31,13 @@ class Rol(models.Model):
 
 
 class Permiso(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     nombre = models.CharField(max_length=80, unique=True)
     descripcion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -28,6 +49,13 @@ class Permiso(models.Model):
 
 
 class RolPermiso(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     rol = models.ForeignKey(Rol, on_delete=models.CASCADE)
     permiso = models.ForeignKey(Permiso, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,6 +70,13 @@ class RolPermiso(models.Model):
 
 
 class UserProfile(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     rol = models.ForeignKey(Rol, on_delete=models.SET_NULL, null=True, blank=True)
     telefono = models.CharField(max_length=20, blank=True)
@@ -60,7 +95,13 @@ class Cliente(models.Model):
         ('PAS', 'Pasaporte'),
         ('NIT', 'NIT'),
     ]
-    
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     tipo_documento = models.CharField(max_length=3, choices=TIPOS_DOCUMENTO, default='CI')
     numero_documento = models.CharField(max_length=20, unique=True)
@@ -87,7 +128,13 @@ class Empleado(models.Model):
         ('TESORERIA', 'Tesorería'),
         ('ATENCION', 'Atención al Cliente'),
     ]
-    
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     codigo_empleado = models.CharField(max_length=10, unique=True)
     departamento = models.CharField(max_length=20, choices=DEPARTAMENTOS)
@@ -117,7 +164,13 @@ class SolicitudCredito(models.Model):
         ('APROBADA', 'Aprobada'),
         ('RECHAZADA', 'Rechazada'),
     ]
-    
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cliente = models.ForeignKey('api.Cliente', on_delete=models.PROTECT, related_name='solicitudes')
     oficial = models.ForeignKey('api.Empleado', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes')
@@ -152,6 +205,13 @@ class SolicitudCredito(models.Model):
 
 
 class PlanPago(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     solicitud = models.OneToOneField(
     SolicitudCredito,
@@ -180,6 +240,13 @@ class PlanCuota(models.Model):
         ('PAGADA', 'Pagada'),
         ('VENCIDA', 'Vencida'),
     )
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     plan = models.ForeignKey(PlanPago, on_delete=models.CASCADE, related_name='cuotas')
     nro_cuenta = models.IntegerField(default=0)  # (opcional) por si usas cuenta
     nro_cuota = models.PositiveIntegerField()
@@ -206,6 +273,13 @@ class ProductoFinanciero(models.Model):
         ('HIPOTECARIO', 'Hipotecario'),
         ('PYME', 'Micro/Pequeña Empresa'),
     ]
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     codigo = models.CharField(max_length=30, unique=True)
     nombre = models.CharField(max_length=120)
     tipo = models.CharField(max_length=20, choices=TIPOS)
@@ -226,6 +300,13 @@ class ProductoFinanciero(models.Model):
 
 
 class DocumentoTipo(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     codigo = models.CharField(max_length=40, unique=True)  # CI, DOMICILIO, BOLETAS_3M, AFP_1M, EXTRACTOS_6M, PROFORMA_VEH, FOLIO_REAL, AVALUO, etc.
     nombre = models.CharField(max_length=120)
     descripcion = models.TextField(blank=True)
@@ -239,6 +320,13 @@ class DocumentoTipo(models.Model):
 
 
 class RequisitoProductoDocumento(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     TRABAJADOR = [('PUBLICO','Público'),('PRIVADO','Privado'),('INDEPENDIENTE','Independiente')]
     producto = models.ForeignKey(ProductoFinanciero, on_delete=models.CASCADE, related_name='requisitos')
     tipo_trabajador = models.CharField(max_length=20, choices=TRABAJADOR)
@@ -253,6 +341,13 @@ class RequisitoProductoDocumento(models.Model):
         return f'{self.producto.codigo} - {self.tipo_trabajador} - {self.documento.codigo}'
 
 class DocumentoAdjunto(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     solicitud = models.ForeignKey(SolicitudCredito, on_delete=models.CASCADE, related_name='documentos')
     documento_tipo = models.ForeignKey(DocumentoTipo, on_delete=models.PROTECT)
     archivo = models.FileField(upload_to='solicitudes/%Y/%m/')
@@ -275,7 +370,13 @@ class ValidacionDocumento(models.Model):
         ('OBSERVADO', 'Observado'),
         ('RECHAZADO', 'Rechazado'),
     ]
-    
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     documento = models.ForeignKey('DocumentoAdjunto', on_delete=models.CASCADE, related_name='validaciones')
     estado = models.CharField(max_length=20, choices=ESTADOS_VALIDACION, default='PENDIENTE')
     score_confianza = models.FloatField(null=True, blank=True)
@@ -291,6 +392,13 @@ class ValidacionDocumento(models.Model):
         return f"Validación {self.documento.id} - {self.estado}"
 
 class ResultadoValidacionIA(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     solicitud = models.ForeignKey('SolicitudCredito', on_delete=models.CASCADE, related_name='resultados_ia')
     score_global = models.FloatField()
     recomendacion = models.CharField(max_length=50)  # APROBAR, RECHAZAR, REVISAR_MANUAL
@@ -315,7 +423,13 @@ class TransaccionPago(models.Model):
         ('FALLIDO', 'Fallido'),
         ('REVERTIDO', 'Revertido'),
     )
-    
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cuota = models.ForeignKey('PlanCuota', on_delete=models.CASCADE, related_name='transacciones')
     monto = models.DecimalField(max_digits=16, decimal_places=2)
@@ -350,7 +464,13 @@ class Reporte(models.Model):
         ('excel', 'Excel'),
         ('texto', 'Texto'),
     ]
-    
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     nombre = models.CharField(max_length=200)
     tipo_reporte = models.CharField(max_length=20, choices=TIPO_REPORTE_CHOICES)
     formato = models.CharField(max_length=10, choices=FORMATO_CHOICES)
@@ -364,6 +484,13 @@ class Reporte(models.Model):
         return self.nombre
 
 class ConfiguracionReporte(models.Model):
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     voz_activa = models.BooleanField(default=False)
     tipo_voz = models.CharField(max_length=50, default='es-ES-Standard-A')
@@ -373,3 +500,15 @@ class ConfiguracionReporte(models.Model):
     def __str__(self):
         return f"Configuración de {self.usuario.username}"
    
+class Perfil(models.Model):
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE)
+    empresa = models.ForeignKey(
+    Empresa,
+    on_delete=models.CASCADE,
+    null=True,        # permite NULL en la base de datos
+    blank=True,       # permite que los formularios lo dejen vacío
+    default=None      # valor por defecto temporal
+    )
+    
+    def __str__(self):
+        return f"{self.usuario.username} - {self.empresa.nombre}"

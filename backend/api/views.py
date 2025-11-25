@@ -35,7 +35,7 @@ from .models import (
     Rol, Permiso, RolPermiso, UserProfile,
     Cliente, Empleado, SolicitudCredito,
     PlanPago, ProductoFinanciero,
-    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, PlanCuota, Reporte, ConfiguracionReporte
+    DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, PlanCuota, Reporte, ConfiguracionReporte, Empresa,
 )
 
 from .serializers import (
@@ -64,7 +64,7 @@ from .serializers import (
 
     ReporteSerializer,
     ConfiguracionReporteSerializer,
-    FiltroReporteSerializer
+    FiltroReporteSerializer, EmpresaSerializer,
 )
 
 #Bitacora;
@@ -106,7 +106,33 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 # =========================================================
 #                          USUARIOS
 # =========================================================
-class UserViewSet(viewsets.ModelViewSet):
+
+class EmpresaViewSet(viewsets.ModelViewSet):
+    queryset = Empresa.objects.all()
+    serializer_class = EmpresaSerializer
+
+# Modificar todas las viewsets existentes para filtrar por empresa
+class BaseEmpresaViewSet(viewsets.ModelViewSet):
+    def get_queryset(self):
+        user = self.request.user
+    
+        # Si el usuario no tiene perfil, no filtramos por empresa
+        perfil = getattr(user, "perfil", None)
+    
+        if perfil is None or perfil.empresa_id is None:
+            # Modo temporal: devuelve TODO sin filtrar
+            return super().get_queryset()
+    
+        # Si sí tiene empresa, se filtra por empresa
+        empresa_id = perfil.empresa_id
+        return super().get_queryset().filter(empresa_id=empresa_id)
+    
+    def perform_create(self, serializer):
+        # Asignar empresa automáticamente
+        empresa_id = self.request.user.perfil.empresa_id
+        serializer.save(empresa_id=empresa_id)
+
+class UserViewSet(BaseEmpresaViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -206,12 +232,12 @@ class UserViewSet(viewsets.ModelViewSet):
 # =========================================================
 #                    CLIENTE / EMPLEADO
 # =========================================================
-class ClienteViewSet(viewsets.ModelViewSet):
+class ClienteViewSet(BaseEmpresaViewSet):
     queryset = Cliente.objects.select_related('user').all()
     serializer_class = ClienteSerializer
     permission_classes = [IsAuthenticated]
 
-class EmpleadoViewSet(viewsets.ModelViewSet):
+class EmpleadoViewSet(BaseEmpresaViewSet):
     queryset = Empleado.objects.select_related('user').all()
     serializer_class = EmpleadoSerializer
     permission_classes = [IsAuthenticated]
@@ -219,7 +245,7 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
 # =========================================================
 #              ROLES / PERMISOS / BITÁCORA
 # =========================================================
-class RolViewSet(viewsets.ModelViewSet):
+class RolViewSet(BaseEmpresaViewSet):
     queryset = Rol.objects.all()
     serializer_class = RolSerializer
     permission_classes = [IsAuthenticated]
@@ -255,17 +281,17 @@ class RolViewSet(viewsets.ModelViewSet):
         except (Permiso.DoesNotExist, RolPermiso.DoesNotExist):
             return Response({"error": "Permiso no encontrado o no asignado."}, status=404)
 
-class PermisoViewSet(viewsets.ModelViewSet):
+class PermisoViewSet(BaseEmpresaViewSet):
     queryset = Permiso.objects.all()
     serializer_class = PermisoSerializer
     permission_classes = [IsAuthenticated]
 
-class RolPermisoViewSet(viewsets.ModelViewSet):
+class RolPermisoViewSet(BaseEmpresaViewSet):
     queryset = RolPermiso.objects.all()
     serializer_class = RolPermisoSerializer
     permission_classes = [IsAuthenticated]
 
-class UserProfileViewSet(viewsets.ModelViewSet):
+class UserProfileViewSet(BaseEmpresaViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -274,7 +300,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 # =========================================================
 #                 SOLICITUDES (CU12/13/14)
 # =========================================================
-class SolicitudCreditoViewSet(viewsets.ModelViewSet):
+class SolicitudCreditoViewSet(BaseEmpresaViewSet):
     queryset = SolicitudCredito.objects.filter(is_deleted=False)
     permission_classes = [IsAuthenticated]
 
@@ -451,7 +477,7 @@ class SolicitudCreditoViewSet(viewsets.ModelViewSet):
 # =========================================================
 #                    PLAN DE PAGO (CU15)
 # =========================================================
-class PlanPagoGenerateView(viewsets.ViewSet):
+class PlanPagoGenerateView(BaseEmpresaViewSet):
     permission_classes = [IsAuthenticated, IsOfficialOrAdmin]
 
     def create(self, request, solicitud_id=None):
@@ -465,7 +491,7 @@ class PlanPagoGenerateView(viewsets.ViewSet):
         except ValueError as e:
             return Response({"detail": str(e)}, status=409)
 
-class PlanPagoDetailView(viewsets.ViewSet):
+class PlanPagoDetailView(BaseEmpresaViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request, solicitud_id=None):
@@ -510,7 +536,7 @@ class SimuladorAPIView(APIView):
 # =========================================================
 #                 CU18: PRODUCTOS / DOCUMENTOS
 # =========================================================
-class ProductoFinancieroViewSet(viewsets.ModelViewSet):
+class ProductoFinancieroViewSet(BaseEmpresaViewSet):
     queryset = ProductoFinanciero.objects.all()
     serializer_class = ProductoFinancieroSerializer
     #permission_classes = [IsAuthenticated]
@@ -542,12 +568,12 @@ class ProductoFinancieroViewSet(viewsets.ModelViewSet):
         data = [{"id": p.id, "nombre": p.nombre} for p in productos]
         return Response(data)
 
-class DocumentoTipoViewSet(viewsets.ModelViewSet):
+class DocumentoTipoViewSet(BaseEmpresaViewSet):
     queryset = DocumentoTipo.objects.all().order_by('nombre')
     serializer_class = DocumentoTipoSerializer
     permission_classes = [IsAuthenticated]
 
-class RequisitoProductoDocumentoViewSet(viewsets.ModelViewSet):
+class RequisitoProductoDocumentoViewSet(BaseEmpresaViewSet):
     queryset = RequisitoProductoDocumento.objects.select_related('producto', 'documento').all()
     permission_classes = [IsAuthenticated]
 
@@ -569,7 +595,7 @@ class RequisitoProductoDocumentoViewSet(viewsets.ModelViewSet):
 # =========================================================
 #                 CU19: DOCUMENTOS ADJUNTOS
 # =========================================================
-class DocumentoAdjuntoViewSet(viewsets.ModelViewSet):
+class DocumentoAdjuntoViewSet(BaseEmpresaViewSet):
     queryset = DocumentoAdjunto.objects.select_related('documento_tipo', 'solicitud')
     serializer_class = DocumentoAdjuntoSerializer
     parser_classes = [MultiPartParser, FormParser]
@@ -627,7 +653,7 @@ class DocumentoAdjuntoViewSet(viewsets.ModelViewSet):
             pass
         return resp
     
-class ValidacionInformacionViewSet(viewsets.ViewSet):
+class ValidacionInformacionViewSet(BaseEmpresaViewSet):
     permission_classes = [IsAuthenticated, IsOfficialOrAdmin]
     
     @action(detail=False, methods=['post'], url_path='iniciar')
@@ -903,7 +929,7 @@ class ValidacionInformacionViewSet(viewsets.ViewSet):
         except Exception as e:
             print(f"💥 Error en validar_manual: {str(e)}")
             return Response({'error': str(e)}, status=500)
-class PagoViewSet(viewsets.ViewSet):
+class PagoViewSet(BaseEmpresaViewSet):
     # TEMPORAL: Quita la autenticación para testing
     #permission_classes = []  # Esto permite acceso sin autenticación
     permission_classes = [IsAuthenticated]
@@ -1155,7 +1181,7 @@ class PagoViewSet(viewsets.ViewSet):
         #    created_at=timezone.now()
         #)
 
-class ReporteViewSet(viewsets.ModelViewSet):
+class ReporteViewSet(BaseEmpresaViewSet):
     queryset = Reporte.objects.all()
     serializer_class = ReporteSerializer
     permission_classes = []  # ⚡ Sin permisos

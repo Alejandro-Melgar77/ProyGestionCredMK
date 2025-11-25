@@ -20,10 +20,11 @@ from .views import (
     ValidacionInformacionViewSet,
 
     #Registro inicio de sesion
-    CustomTokenObtainPairView, ReporteViewSet,
+    CustomTokenObtainPairView, ReporteViewSet, EmpresaViewSet
 )
 
 router = DefaultRouter()
+router.register(r'empresas', EmpresaViewSet)
 router.register(r'users', UserViewSet)
 router.register(r'roles', RolViewSet)
 router.register(r'permisos', PermisoViewSet)

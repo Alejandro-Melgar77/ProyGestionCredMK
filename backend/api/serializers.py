@@ -7,13 +7,20 @@ from rest_framework.validators import UniqueValidator
 from .models import (
     Rol, Permiso, RolPermiso, UserProfile,
     Cliente, Empleado, SolicitudCredito, PlanPago, PlanCuota,
-    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, Reporte, ConfiguracionReporte
+    ProductoFinanciero, DocumentoTipo, RequisitoProductoDocumento, DocumentoAdjunto, ValidacionDocumento, ResultadoValidacionIA, TransaccionPago, 
+    Reporte, ConfiguracionReporte, Perfil, Empresa
 )
 
 # =========================================================
 #                    USUARIOS / PERSONAS
 # =========================================================
 
+
+class EmpresaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Empresa
+        fields = '__all__'
+        
 class ClienteNestedSerializer(serializers.ModelSerializer):
     """Cliente embebido con datos básicos del User."""
     user_info = serializers.SerializerMethodField()
@@ -22,6 +29,7 @@ class ClienteNestedSerializer(serializers.ModelSerializer):
         model = Cliente
         fields = ['id', 'user_info', 'tipo_documento', 'numero_documento',
                   'telefono', 'ingresos_mensuales', 'es_cliente_preferencial']
+        read_only_fields = ('empresa',)
 
     def get_user_info(self, obj):
         u = obj.user
@@ -44,6 +52,7 @@ class EmpleadoNestedSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_info', 'codigo_empleado', 'departamento',
                   'fecha_contratacion', 'salario', 'es_supervisor',
                   'puede_aprobar_creditos', 'limite_aprobacion']
+        read_only_fields = ('empresa',)
 
     def get_user_info(self, obj):
         u = obj.user
@@ -60,6 +69,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active']
+        read_only_fields = ('empresa',)
         read_only_fields = ['id']
 
 
@@ -96,6 +106,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'direccion', 'fecha_nacimiento', 'ocupacion', 'ingresos_mensuales'
         ]
         read_only_fields = ['id']
+        read_only_fields = ('empresa',)
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -191,6 +202,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'is_active']
+        read_only_fields = ('empresa',)
 
     def update(self, instance, validated_data):
         instance.username = validated_data.get('username', instance.username)
@@ -235,12 +247,14 @@ class RolSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rol
         fields = '__all__'
+        read_only_fields = ('empresa',)
 
 
 class PermisoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permiso
         fields = '__all__'
+        read_only_fields = ('empresa',)
 
 
 class RolPermisoSerializer(serializers.ModelSerializer):
@@ -251,6 +265,7 @@ class RolPermisoSerializer(serializers.ModelSerializer):
         model = RolPermiso
         fields = ['id', 'rol', 'permiso', 'rol_nombre', 'permiso_nombre',
                   'created_at', 'updated_at', 'is_deleted']
+        read_only_fields = ('empresa',)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -262,6 +277,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'rol', 'rol_nombre',
                   'telefono', 'created_at', 'updated_at', 'is_deleted']
+        read_only_fields = ('empresa',)
 
 
 
@@ -274,6 +290,7 @@ class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name')
+        read_only_fields = ('empresa',)
 
 
 class ClienteSerializer(serializers.ModelSerializer):
@@ -287,6 +304,7 @@ class ClienteSerializer(serializers.ModelSerializer):
             'ingresos_mensuales', 'fecha_registro', 'puntuacion_crediticia',
             'es_cliente_preferencial'
         )
+        read_only_fields = ('empresa',)
     def get_user_info(self, obj):
         u = obj.user
         return {
@@ -317,6 +335,7 @@ class EmpleadoSerializer(serializers.ModelSerializer):
             'puede_aprobar_creditos',
             'limite_aprobacion',
         ]
+        read_only_fields = ('empresa',)
 
     def create(self, validated_data):
         # Generar código de empleado si no se proporciona
@@ -334,6 +353,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active',
                   'rol_nombre', 'cliente_info', 'empleado_info']
+        read_only_fields = ('empresa',)
 
     def get_cliente_info(self, obj):
         try:
@@ -369,6 +389,7 @@ class SolicitudCreditoSerializer(serializers.ModelSerializer):
             'observacion_evaluacion', 'fecha_evaluacion', 'fecha_aprobacion',
             'created_at', 'updated_at'
         )
+        read_only_fields = ('empresa',)
 
 
 class SolicitudCreateSerializer(serializers.ModelSerializer):
@@ -381,6 +402,7 @@ class SolicitudCreateSerializer(serializers.ModelSerializer):
             'tipo_trabajador',   # <-- agregar
             'monto', 'plazo_meses', 'tasa_nominal_anual', 'moneda'
         ]
+        read_only_fields = ('empresa',)
 
     def validate(self, attrs):
         if attrs['monto'] <= 0:
@@ -403,6 +425,7 @@ class SolicitudListSerializer(serializers.ModelSerializer):
         model = SolicitudCredito
         fields = ['id', 'cliente', 'cliente_nombre', 'oficial', 'oficial_codigo',
                   'monto', 'plazo_meses', 'tasa_nominal_anual', 'moneda', 'estado', 'created_at']
+        read_only_fields = ('empresa',)
 
     def get_cliente_nombre(self, obj):
         try:
@@ -429,6 +452,7 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
             'estado', 'score_riesgo', 'observacion_evaluacion',
             'fecha_evaluacion', 'fecha_aprobacion', 'created_at', 'updated_at'
         )
+        read_only_fields = ('empresa',)
 
     def get_cliente_panel(self, obj):
         u = obj.cliente.user
@@ -455,6 +479,7 @@ class PlanCuotaDTO(serializers.ModelSerializer):
     class Meta:
         model = PlanCuota
         fields = ['nro_cuota', 'fecha_vencimiento', 'capital', 'interes', 'cuota', 'saldo', 'ajuste_redondeo']
+        read_only_fields = ('empresa',)
 
 
 class PlanPagoDTO(serializers.ModelSerializer):
@@ -465,6 +490,7 @@ class PlanPagoDTO(serializers.ModelSerializer):
         model = PlanPago
         fields = ['id', 'solicitud_id', 'metodo', 'moneda', 'primera_cuota_fecha',
                   'total_capital', 'total_interes', 'total_cuotas', 'redondeo_ajuste_total', 'cuotas']
+        read_only_fields = ('empresa',)
 
 
 # =========================================================
@@ -547,6 +573,7 @@ class DocumentoTipoSerializer(serializers.ModelSerializer):
     class Meta:
         model = DocumentoTipo
         fields = ['id', 'codigo', 'nombre', 'descripcion', 'vigencia_dias']
+        read_only_fields = ('empresa',)
 
 
 class ProductoMiniSerializer(serializers.ModelSerializer):
@@ -554,6 +581,7 @@ class ProductoMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductoFinanciero
         fields = ['id', 'nombre', 'tipo']
+        read_only_fields = ('empresa',)
 
 
 class ProductoFinancieroSerializer(serializers.ModelSerializer):
@@ -565,6 +593,7 @@ class ProductoFinancieroSerializer(serializers.ModelSerializer):
             'plazo_min', 'plazo_max', 'monto_min', 'monto_max',
             'metodo_amortizacion_default', 'activo'
         ]
+        read_only_fields = ('empresa',)
 
 
 # ---------- Requisitos (READ) ----------
@@ -580,6 +609,7 @@ class RequisitoProductoDocumentoSerializer(serializers.ModelSerializer):
         model = RequisitoProductoDocumento
         fields = ['id', 'producto', 'producto_info', 'tipo_trabajador', 'obligatorio', 'documento']
         read_only_fields = ['producto_info']
+        read_only_fields = ('empresa',)
 
 
 # ---------- Requisitos (WRITE) ----------
@@ -591,6 +621,7 @@ class RequisitoProductoDocumentoWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = RequisitoProductoDocumento
         fields = ['id', 'producto', 'tipo_trabajador', 'documento', 'obligatorio']
+        read_only_fields = ('empresa',)
 
     def validate(self, attrs):
         producto = attrs.get('producto') or getattr(self.instance, 'producto', None)
@@ -623,6 +654,7 @@ class DocumentoAdjuntoSerializer(serializers.ModelSerializer):
             'fecha_emision', 'fecha_vencimiento', 'valido', 'observacion', 'uploaded_at'
         ]
         read_only_fields = ['valido', 'observacion', 'uploaded_at']
+        read_only_fields = ('empresa',)
 
 
 # =========================================================
@@ -650,6 +682,7 @@ class ValidacionDocumentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ValidacionDocumento
         fields = '__all__'
+        read_only_fields = ('empresa',)
 
     def get_documento_info(self, obj):
         return {
@@ -662,6 +695,7 @@ class ResultadoValidacionIASerializer(serializers.ModelSerializer):
     class Meta:
         model = ResultadoValidacionIA
         fields = '__all__'
+        read_only_fields = ('empresa',)
 
 class ProcesarValidacionSerializer(serializers.Serializer):
     solicitud_id = serializers.UUIDField()
@@ -692,6 +726,7 @@ class CuotaPendienteSerializer(serializers.ModelSerializer):
             'id', 'nro_cuota', 'fecha_vencimiento', 'capital', 'interes', 
             'cuota', 'saldo', 'estado', 'solicitud_info', 'producto_info', 'dias_vencimiento'
         ]
+        read_only_fields = ('empresa',)
     
     def get_solicitud_info(self, obj):
         solicitud = obj.plan.solicitud
@@ -785,6 +820,7 @@ class TransaccionPagoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TransaccionPago
         fields = '__all__'
+        read_only_fields = ('empresa',)
     
     def get_cuota_info(self, obj):
         return {
@@ -804,6 +840,7 @@ class ConfiguracionReporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracionReporte
         fields = '__all__'
+        read_only_fields = ('empresa',)
 
 class ReporteSerializer(serializers.ModelSerializer):
     generado_por_nombre = serializers.CharField(source='generado_por.get_full_name', read_only=True)
@@ -812,6 +849,7 @@ class ReporteSerializer(serializers.ModelSerializer):
         model = Reporte
         fields = '__all__'
         read_only_fields = ('generado_por', 'fecha_generacion')
+        read_only_fields = ('empresa',)
 
 
 class FiltroReporteSerializer(serializers.Serializer):
@@ -821,3 +859,8 @@ class FiltroReporteSerializer(serializers.Serializer):
     estado = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     tipo_producto = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     formato = serializers.ChoiceField(choices=Reporte.FORMATO_CHOICES)
+
+class PerfilSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Perfil
+        fields = '__all__'
