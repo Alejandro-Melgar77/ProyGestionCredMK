@@ -4,8 +4,8 @@ import re
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 import os
-
 import io
+
 from django.http import HttpResponse
 from django.db.models import Count, Sum, Avg
 from reportlab.pdfgen import canvas
@@ -15,9 +15,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 import openpyxl
 from openpyxl.styles import Font, Alignment
+from pydub import AudioSegment  # 🔥 Para convertir audio a WAV
 
 from ..models import Cliente, SolicitudCredito, TransaccionPago
-
 
 # -------------------------------------------------------------------------
 #  PROCESADOR DE COMANDOS POR VOZ
@@ -25,7 +25,6 @@ from ..models import Cliente, SolicitudCredito, TransaccionPago
 
 class VoiceCommandProcessor:
     def __init__(self):
-        self.recognizer = sr.Recognizer()
         self.keywords = {
             'tipo_reporte': {
                 'creditos': ['créditos', 'préstamos', 'solicitudes'],
@@ -54,12 +53,24 @@ class VoiceCommandProcessor:
         }
 
     def transcribe_audio(self, audio_file):
+        """
+        Convierte audio a WAV con pydub y luego transcribe usando SpeechRecognition.
+        Compatible con .webm subido desde frontend.
+        """
         try:
-            with sr.AudioFile(audio_file) as source:
-                self.recognizer.adjust_for_ambient_noise(source)
-                audio_data = self.recognizer.record(source)
-                text = self.recognizer.recognize_google(audio_data, language='es-ES')
-                return text.lower()
+            # Convertir a WAV
+            audio = AudioSegment.from_file(audio_file, format="webm")
+            wav_buffer = io.BytesIO()
+            audio.export(wav_buffer, format="wav")
+            wav_buffer.seek(0)
+
+            # Reconocimiento de voz
+            r = sr.Recognizer()
+            with sr.AudioFile(wav_buffer) as source:
+                r.adjust_for_ambient_noise(source)
+                audio_data = r.record(source)
+                text = r.recognize_google(audio_data, language="es-ES")
+            return text.lower()
 
         except sr.UnknownValueError:
             raise Exception("No se pudo entender el audio")
@@ -131,20 +142,16 @@ class VoiceCommandProcessor:
         except Exception as e:
             return {'success': False, 'error': str(e), 'filters': {}}
 
-
 # -------------------------------------------------------------------------
 #  GENERADOR DE REPORTES
 # -------------------------------------------------------------------------
 
 class ReporteGenerator:
 
-    # --------------------------------------------------------------------------------
-    # CRÉDITOS
-    # --------------------------------------------------------------------------------
+    # ------------------ CRÉDITOS ------------------
     @staticmethod
     def generar_reporte_creditos(filtros, formato):
         creditos = SolicitudCredito.objects.all()
-
         if filtros.get('fecha_inicio'):
             creditos = creditos.filter(created_at__gte=filtros['fecha_inicio'])
         if filtros.get('fecha_fin'):
@@ -222,7 +229,6 @@ class ReporteGenerator:
                 f"Producto: {c.tipo_credito}\n"
                 "-----------------------------------------\n"
             )
-
         buffer = io.BytesIO(contenido.encode())
         return buffer, "reporte_creditos.txt", "text/plain"
 

@@ -1184,96 +1184,136 @@ class PagoViewSet(BaseEmpresaViewSet):
 class ReporteViewSet(BaseEmpresaViewSet):
     queryset = Reporte.objects.all()
     serializer_class = ReporteSerializer
-    permission_classes = []  # ⚡ Sin permisos
+    permission_classes = []  # ⚡ Público temporal
 
+    # 🔥 Filtro por empresa (si viene en el request o autenticación)
     def get_queryset(self):
-        return self.queryset.all()
+        qs = super().get_queryset()
+        empresa = getattr(self.request, "empresa_actual", None)
+        if empresa:
+            return qs.filter(empresa=empresa)
+        return qs  # Temporal: ver todo si empresa no definida
 
     def perform_create(self, serializer):
-        serializer.save()
+        empresa = getattr(self.request, "empresa_actual", None)
+        serializer.save(empresa=empresa)
 
+    # -------------------------------------------------------------
+    # 🔥 GENERAR REPORTE
+    # -------------------------------------------------------------
     @action(detail=False, methods=['post'])
     def generar_reporte(self, request):
-        """Genera un reporte sin necesidad de autenticación"""
         serializer = FiltroReporteSerializer(data=request.data)
-        if serializer.is_valid():
-            filtros = serializer.validated_data
-            tipo_reporte = filtros['tipo_reporte']
-            formato = filtros['formato']
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # Función interna para convertir fechas a string
-            def convertir_fechas_a_str(filtros_dict):
-                filtros_serializables = filtros_dict.copy()
-                for key in ['fecha_inicio', 'fecha_fin']:
-                    if isinstance(filtros_serializables.get(key), date):
-                        filtros_serializables[key] = filtros_serializables[key].isoformat()
-                return filtros_serializables
+        filtros = serializer.validated_data
+        tipo_reporte = filtros['tipo_reporte']
+        formato = filtros['formato']
 
-            filtros_serializables = convertir_fechas_a_str(filtros)
+        # Convertir fechas a cadena para JSON
+        def convertir_fechas_a_str(f):
+            nuevo = f.copy()
+            for campo in ['fecha_inicio', 'fecha_fin']:
+                if isinstance(nuevo.get(campo), date):
+                    nuevo[campo] = nuevo[campo].isoformat()
+            return nuevo
 
-            try:
-                with transaction.atomic():
-                    # ⚡ Generación según tipo de reporte
-                    if tipo_reporte == 'creditos':
-                        buffer, filename, content_type = ReporteGenerator.generar_reporte_creditos(filtros, formato)
-                    elif tipo_reporte == 'clientes':
-                        buffer, filename, content_type = ReporteGenerator.generar_reporte_clientes(filtros, formato)
-                    elif tipo_reporte == 'pagos':
-                        buffer, filename, content_type = ReporteGenerator.generar_reporte_pagos(filtros, formato)
-                    elif tipo_reporte == 'riesgo':
-                        buffer, filename, content_type = ReporteGenerator.generar_reporte_riesgo(filtros, formato)
-                    else:
-                        return Response({'error': 'Tipo de reporte no válido'}, status=status.HTTP_400_BAD_REQUEST)
+        filtros_serializables = convertir_fechas_a_str(filtros)
 
-                    # ⚡ Guardar reporte sin usuario
-                    reporte = Reporte.objects.create(
-                        nombre=f"Reporte_{tipo_reporte}_{filtros.get('fecha_inicio') or ''}",
-                        tipo_reporte=tipo_reporte,
-                        formato=formato,
-                        filtros=filtros_serializables,  # ✅ fechas serializadas
-                        generado_por=None
-                    )
+        try:
+            with transaction.atomic():
+                map_funciones = {
+                    'creditos': ReporteGenerator.generar_reporte_creditos,
+                    'clientes': ReporteGenerator.generar_reporte_clientes,
+                    'pagos': ReporteGenerator.generar_reporte_pagos,
+                    'riesgo': ReporteGenerator.generar_reporte_riesgo,
+                }
 
-                    if formato == 'texto':
-                        reporte.contenido_texto = buffer.getvalue().decode('utf-8')
-                        reporte.save()
+                if tipo_reporte not in map_funciones:
+                    return Response({'error': 'Tipo de reporte no válido'}, status=400)
 
-                    response = HttpResponse(buffer.getvalue(), content_type=content_type)
-                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-                    return response
+                generar = map_funciones[tipo_reporte]
+                buffer, filename, content_type = generar(filtros, formato)
 
-            except Exception as e:
-                return Response({'error': f"ERROR DETALLADO GENERANDO REPORTE: {str(e)}"},
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                empresa = getattr(request, "empresa_actual", None)
+                reporte = Reporte.objects.create(
+                    empresa=empresa,
+                    nombre=f"Reporte_{tipo_reporte}_{filtros.get('fecha_inicio') or ''}",
+                    tipo_reporte=tipo_reporte,
+                    formato=formato,
+                    filtros=filtros_serializables,
+                    generado_por=None
+                )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                if formato == 'texto':
+                    reporte.contenido_texto = buffer.getvalue().decode('utf-8')
+                    reporte.save()
+
+                response = HttpResponse(buffer.getvalue(), content_type=content_type)
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+
+        except Exception as e:
+            return Response({'error': f"ERROR DETALLADO GENERANDO REPORTE: {str(e)}"}, status=500)
+
+    # -------------------------------------------------------------
+    # 🔥 PROCESAR VOZ
+    # -------------------------------------------------------------
     @action(detail=False, methods=['post'])
     def procesar_comando_voz(self, request):
         audio_file = request.FILES.get('audio')
         if not audio_file:
             return Response({'error': 'No se envió ningún archivo de audio'}, status=400)
 
-        # Aquí harías la transcripción del audio usando tu servicio de IA o Speech-to-Text
-        # Por ejemplo:
-        transcribed_text = "Simulación: reporte de créditos aprobados esta semana"
+        try:
+            # Instancia de tu nuevo procesador
+            processor = VoiceCommandProcessor()
+            resultado = processor.process_voice_command(audio_file)
+            if not resultado['success']:
+                return Response({'error': resultado.get('error', 'Error desconocido')}, status=400)
 
-        # Extraer filtros desde el texto
-        filters = {
-            'tipo_reporte': 'creditos',
-            'fecha_inicio': '2025-11-01',
-            'fecha_fin': '2025-11-24',
-            'formato': 'excel'
-        }
+            filtros = resultado['filters']
+            tipo_reporte = filtros['tipo_reporte']
+            formato = filtros['formato']
 
-        # Generar el reporte usando tu función interna
-        buffer, filename, content_type = ReporteGenerator.generar_reporte_creditos(filters, filters['formato'])
+            map_funciones = {
+                'creditos': ReporteGenerator.generar_reporte_creditos,
+                'clientes': ReporteGenerator.generar_reporte_clientes,
+                'pagos': ReporteGenerator.generar_reporte_pagos,
+                'riesgo': ReporteGenerator.generar_reporte_riesgo,
+            }
 
-        response = HttpResponse(buffer.getvalue(), content_type=content_type)
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        response['x-response-data'] = json.dumps({
-            'transcribed_text': transcribed_text,
-            'filters': filters,
-            'filename': filename,
-            'reporte_id': 1
-        })
-        return response
+            if tipo_reporte not in map_funciones:
+                return Response({'error': 'Tipo de reporte no válido'}, status=400)
+
+            generar = map_funciones[tipo_reporte]
+            buffer, filename, content_type = generar(filtros, formato)
+
+            # Guardar registro del reporte
+            empresa = getattr(request, "empresa_actual", None)
+            reporte = Reporte.objects.create(
+                empresa=empresa,
+                nombre=f"Reporte_{tipo_reporte}_{filtros.get('fecha_inicio') or ''}",
+                tipo_reporte=tipo_reporte,
+                formato=formato,
+                filtros=filtros,
+                generado_por=None
+            )
+
+            if formato == 'texto':
+                reporte.contenido_texto = buffer.getvalue().decode('utf-8')
+                reporte.save()
+
+            response = HttpResponse(buffer.getvalue(), content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response['x-response-data'] = json.dumps({
+                'transcribed_text': resultado['transcribed_text'],
+                'filters': filtros,
+                'filename': filename,
+                'reporte_id': reporte.id
+            })
+            return response
+
+        except Exception as e:
+            return Response({'error': f"ERROR PROCESANDO VOZ: {str(e)}"}, status=500)
