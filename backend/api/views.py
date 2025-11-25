@@ -18,6 +18,7 @@ from django.db import transaction
 from django.http import HttpResponse
 import tempfile
 from datetime import date
+import traceback
 
 
 from reportlab.lib.pagesizes import A4
@@ -1191,11 +1192,14 @@ class ReporteViewSet(BaseEmpresaViewSet):
         qs = super().get_queryset()
         empresa = getattr(self.request, "empresa_actual", None)
         if empresa:
+            print(f"[DEBUG] Filtrando reportes por empresa: {empresa}")
             return qs.filter(empresa=empresa)
-        return qs  # Temporal: ver todo si empresa no definida
+        print("[DEBUG] No hay empresa definida, devolviendo todos los reportes")
+        return qs
 
     def perform_create(self, serializer):
         empresa = getattr(self.request, "empresa_actual", None)
+        print(f"[DEBUG] Guardando reporte para empresa: {empresa}")
         serializer.save(empresa=empresa)
 
     # -------------------------------------------------------------
@@ -1203,38 +1207,42 @@ class ReporteViewSet(BaseEmpresaViewSet):
     # -------------------------------------------------------------
     @action(detail=False, methods=['post'])
     def generar_reporte(self, request):
-        serializer = FiltroReporteSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        filtros = serializer.validated_data
-        tipo_reporte = filtros['tipo_reporte']
-        formato = filtros['formato']
-
-        # Convertir fechas a cadena para JSON
-        def convertir_fechas_a_str(f):
-            nuevo = f.copy()
-            for campo in ['fecha_inicio', 'fecha_fin']:
-                if isinstance(nuevo.get(campo), date):
-                    nuevo[campo] = nuevo[campo].isoformat()
-            return nuevo
-
-        filtros_serializables = convertir_fechas_a_str(filtros)
-
         try:
+            serializer = FiltroReporteSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            filtros = serializer.validated_data
+            print(f"[DEBUG] Filtros recibidos: {filtros}")
+
+            tipo_reporte = filtros.get('tipo_reporte')
+            formato = filtros.get('formato')
+            print(f"[DEBUG] Tipo de reporte: {tipo_reporte}, Formato: {formato}")
+
+            # Convertir fechas a cadena para JSON
+            def convertir_fechas_a_str(f):
+                nuevo = f.copy()
+                for campo in ['fecha_inicio', 'fecha_fin']:
+                    if isinstance(nuevo.get(campo), date):
+                        nuevo[campo] = nuevo[campo].isoformat()
+                return nuevo
+
+            filtros_serializables = convertir_fechas_a_str(filtros)
+            print(f"[DEBUG] Filtros serializables: {filtros_serializables}")
+
             with transaction.atomic():
                 map_funciones = {
                     'creditos': ReporteGenerator.generar_reporte_creditos,
                     'clientes': ReporteGenerator.generar_reporte_clientes,
                     'pagos': ReporteGenerator.generar_reporte_pagos,
-                    'riesgo': ReporteGenerator.generar_reporte_riesgo,
+                    #'riesgo': ReporteGenerator.generar_reporte_riesgo,
                 }
 
                 if tipo_reporte not in map_funciones:
+                    print(f"[ERROR] Tipo de reporte no válido: {tipo_reporte}")
                     return Response({'error': 'Tipo de reporte no válido'}, status=400)
 
                 generar = map_funciones[tipo_reporte]
                 buffer, filename, content_type = generar(filtros, formato)
+                print(f"[DEBUG] Reporte generado: {filename}, tipo: {content_type}")
 
                 empresa = getattr(request, "empresa_actual", None)
                 reporte = Reporte.objects.create(
@@ -1245,16 +1253,20 @@ class ReporteViewSet(BaseEmpresaViewSet):
                     filtros=filtros_serializables,
                     generado_por=None
                 )
+                print(f"[DEBUG] Registro de reporte creado con ID: {reporte.id}")
 
                 if formato == 'texto':
                     reporte.contenido_texto = buffer.getvalue().decode('utf-8')
                     reporte.save()
+                    print("[DEBUG] Contenido de texto guardado en DB")
 
                 response = HttpResponse(buffer.getvalue(), content_type=content_type)
                 response['Content-Disposition'] = f'attachment; filename="{filename}"'
                 return response
 
         except Exception as e:
+            print("[ERROR] Exception generando reporte:")
+            traceback.print_exc()
             return Response({'error': f"ERROR DETALLADO GENERANDO REPORTE: {str(e)}"}, status=500)
 
     # -------------------------------------------------------------
@@ -1264,33 +1276,39 @@ class ReporteViewSet(BaseEmpresaViewSet):
     def procesar_comando_voz(self, request):
         audio_file = request.FILES.get('audio')
         if not audio_file:
+            print("[ERROR] No se envió archivo de audio")
             return Response({'error': 'No se envió ningún archivo de audio'}, status=400)
 
         try:
-            # Instancia de tu nuevo procesador
+            print("[DEBUG] Procesando comando de voz...")
             processor = VoiceCommandProcessor()
             resultado = processor.process_voice_command(audio_file)
+            print(f"[DEBUG] Resultado del procesador de voz: {resultado}")
+
             if not resultado['success']:
+                print(f"[ERROR] Error en procesamiento de voz: {resultado.get('error')}")
                 return Response({'error': resultado.get('error', 'Error desconocido')}, status=400)
 
             filtros = resultado['filters']
-            tipo_reporte = filtros['tipo_reporte']
-            formato = filtros['formato']
+            tipo_reporte = filtros.get('tipo_reporte')
+            formato = filtros.get('formato')
+            print(f"[DEBUG] Filtros obtenidos de voz: {filtros}")
 
             map_funciones = {
                 'creditos': ReporteGenerator.generar_reporte_creditos,
                 'clientes': ReporteGenerator.generar_reporte_clientes,
                 'pagos': ReporteGenerator.generar_reporte_pagos,
-                'riesgo': ReporteGenerator.generar_reporte_riesgo,
+                #'riesgo': ReporteGenerator.generar_reporte_riesgo,
             }
 
             if tipo_reporte not in map_funciones:
+                print(f"[ERROR] Tipo de reporte no válido desde voz: {tipo_reporte}")
                 return Response({'error': 'Tipo de reporte no válido'}, status=400)
 
             generar = map_funciones[tipo_reporte]
             buffer, filename, content_type = generar(filtros, formato)
+            print(f"[DEBUG] Reporte generado desde voz: {filename}")
 
-            # Guardar registro del reporte
             empresa = getattr(request, "empresa_actual", None)
             reporte = Reporte.objects.create(
                 empresa=empresa,
@@ -1300,10 +1318,12 @@ class ReporteViewSet(BaseEmpresaViewSet):
                 filtros=filtros,
                 generado_por=None
             )
+            print(f"[DEBUG] Registro de reporte creado desde voz con ID: {reporte.id}")
 
             if formato == 'texto':
                 reporte.contenido_texto = buffer.getvalue().decode('utf-8')
                 reporte.save()
+                print("[DEBUG] Contenido de texto guardado en DB desde voz")
 
             response = HttpResponse(buffer.getvalue(), content_type=content_type)
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -1316,4 +1336,6 @@ class ReporteViewSet(BaseEmpresaViewSet):
             return response
 
         except Exception as e:
+            print("[ERROR] Exception procesando voz:")
+            traceback.print_exc()
             return Response({'error': f"ERROR PROCESANDO VOZ: {str(e)}"}, status=500)
